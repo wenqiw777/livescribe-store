@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>LiveScribe capture harness — mock Zoom captions</title>
+<style>
+  body { margin:0; background:#111; color:#eee; font-family:-apple-system,sans-serif; height:100vh; }
+  #stage { position:relative; height:60vh; background:#000; overflow:hidden; }
+  .pill { position:absolute; display:flex; gap:8px; align-items:flex-start;
+          background:#2a2a2a; color:#fff; padding:10px 14px; border-radius:8px;
+          max-width:560px; font-size:15px; }
+  .av { background:#555; border-radius:4px; padding:2px 6px; font-size:12px; flex:none; }
+  #out { padding:12px; font-size:13px; }
+  #out b { color:#7cc4ff; }
+  .row { margin:2px 0; }
+  #status { padding:8px 12px; background:#1a1a1a; font-size:13px; }
+</style>
+</head>
+<body>
+  <div id="stage"></div>
+  <div id="status">booting…</div>
+  <div id="out"></div>
+
+  <script src="../src/collector.js"></script>
+  <script src="../src/autocapture.js"></script>
+  <script>
+  // ---- Mock Zoom caption behaviour -----------------------------------------
+  // Deliberately hostile to naive scrapers:
+  //  * class names are random garbage (no "caption" anywhere)
+  //  * a NEW pill node is created for each utterance (node churn)
+  //  * halfway through, the pill is MOVED to a different position AND
+  //    re-parented into a different container (simulates dragging the box)
+  const stage = document.getElementById('stage');
+  const rnd = () => 'x' + Math.random().toString(36).slice(2, 8);
+
+  const UTTERANCES = [
+    ['Sarah Miller', "product that solves, like, every feature for as a startup, right?"],
+    ['Alex Johnson', "I think we should narrow the scope before Friday."],
+    ['Chris Lee', "Agreed, let's cut the dashboard from v1."],
+    ['Sarah Miller', "Okay so I'll own the API and Alex takes the frontend."],
+  ];
+
+  let movedContainer = null;
+  let pill = null;
+
+  function newPill(speaker) {
+    const p = document.createElement('div');
+    p.className = 'pill ' + rnd();          // random class each time
+    p.style.left = '80px'; p.style.bottom = '40px';
+    const av = document.createElement('span');
+    av.className = 'av ' + rnd();
+    av.title = speaker;                      // like Zoom's avatar tooltip
+    av.textContent = speaker.split(' ').map(w => w[0]).join('').toUpperCase();
+    const tx = document.createElement('span');
+    tx.className = rnd();
+    p.appendChild(av); p.appendChild(tx);
+    (movedContainer || stage).appendChild(p);
+    return { p, tx };
+  }
+
+  // After utterance #2, "drag" the caption box: move position + re-parent.
+  function dragTheBox() {
+    movedContainer = document.createElement('div');
+    movedContainer.className = rnd();
+    movedContainer.style.cssText = 'position:absolute;inset:0;';
+    stage.appendChild(movedContainer);
+    if (pill) {
+      movedContainer.appendChild(pill);     // re-parent the live node
+      pill.style.left = '360px'; pill.style.bottom = 'auto'; pill.style.top = '20px';
+    }
+    document.getElementById('status').textContent =
+      '⟵ caption box was DRAGGED (moved + re-parented) after utterance 2';
+  }
+
+  async function play() {
+    for (let i = 0; i < UTTERANCES.length; i++) {
+      const [speaker, line] = UTTERANCES[i];
+      const { p, tx } = newPill(speaker);
+      pill = p;
+      const words = line.split(' ');
+      for (let w = 0; w < words.length; w++) {
+        tx.textContent = words.slice(0, w + 1).join(' ');   // grow word by word
+        await sleep(60);
+      }
+      await sleep(400);
+      if (i === 1) { dragTheBox(); await sleep(500); }
+      if (i < UTTERANCES.length - 1) p.remove();            // utterance ends
+    }
+    window.__done = true;
+  }
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  // ---- Wire the real capture engine ----------------------------------------
+  const A = window.LSAutoCapture.create({
+    label: 'mock zoom',
+    hints: ['[aria-live="polite"][class*="caption" i]'],   // intentionally will NOT match
+    onLine: (k, s, t) => window.LSCollector.update(k, s, t),
+    onGone: (k) => window.LSCollector.finalize(k),
+  });
+  A.start();
+  window.__A = A;
+
+  window.LSCollector.onChange(v => {
+    document.getElementById('out').innerHTML =
+      v.committed.map(l => `<div class="row"><b>${l.speaker}:</b> ${l.text}</div>`).join('') +
+      v.active.map(l => `<div class="row" style="opacity:.5"><b>${l.speaker}:</b> ${l.text}</div>`).join('');
+  });
+
+  play();
+  </script>
+</body>
+</html>

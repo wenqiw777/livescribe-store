@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { width: 380px; max-height: 520px; margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; color: #1a1a1a; background: #fff; }
+  header { display:flex; align-items:center; gap:8px; padding: 12px 14px; border-bottom: 1px solid #eee; position: sticky; top:0; background:#fff; }
+  header b { flex:1; font-size: 14px; }
+  header a { color:#6d5ae6; text-decoration:none; font-size:12px; cursor:pointer; }
+  .list { overflow-y:auto; }
+  .item { padding: 10px 14px; border-bottom: 1px solid #f2f2f2; cursor: pointer; }
+  .item:hover { background:#f7f9ff; }
+  .item .t { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .item .m { color:#888; font-size:11px; margin-top:2px; }
+  .empty { padding: 30px 14px; text-align:center; color:#999; }
+  .detail { padding: 12px 14px; }
+  .detail h2 { font-size:13px; margin: 0 0 4px; }
+  .detail .meta { color:#888; font-size:11px; margin-bottom:10px; }
+  .box { background:#f6f7f9; border:1px solid #eee; border-radius:8px; padding:10px; white-space:pre-wrap; max-height:200px; overflow:auto; font-size:12px; }
+  .row { display:flex; gap:6px; margin-top:10px; }
+  button { flex:1; padding:7px; border-radius:7px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:12px; }
+  button.primary { background:#6d5ae6; color:#fff; border-color:#6d5ae6; }
+  button.danger { color:#d00; }
+  .back { cursor:pointer; color:#6d5ae6; font-size:12px; margin-bottom:8px; display:inline-block; }
+  .pending { background:#f5f3ff; border-bottom:1px solid #e6e1fb; padding:10px 14px; }
+  .pending-h { font-weight:600; font-size:12px; color:#5b46d6; margin-bottom:8px; }
+  .pending-row { background:#fff; border:1px solid #e6e1fb; border-radius:8px; padding:9px 10px; margin-bottom:6px; }
+  .pending-row .row { margin-top:7px; }
+  .pending-row button { font-size:11.5px; padding:5px 6px; }
+  .pending-row .out { white-space:pre-wrap; font-size:11.5px; color:#444; margin-top:7px; }
+  .pending-row .out:empty { display:none; }
+  button.primary { background:#6d5ae6; border-color:#6d5ae6; }
+</style>
+</head>
+<body>
+  <header>
+    <b>LiveScribe</b>
+    <a id="opts">Settings</a>
+  </header>
+  <div id="view"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

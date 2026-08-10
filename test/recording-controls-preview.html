@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>LiveScribe recording controls preview</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../src/panel.css">
+  <style>
+    html, body { min-height: 100%; margin: 0; background: #101217; }
+    body::before {
+      content: "Zoom meeting preview"; position: fixed; inset: 0; display: grid;
+      place-items: center; color: #596171; font: 24px system-ui;
+    }
+  </style>
+</head>
+<body>
+<script>
+  window.chrome = {
+    runtime: {
+      lastError: null,
+      connect: () => ({ postMessage() {} }),
+      sendMessage: (_message, callback) => callback && callback({ ok: true }),
+    },
+  };
+  navigator.clipboard = { writeText: async () => {} };
+</script>
+<script src="../src/collector.js"></script>
+<script src="../src/panel.js"></script>
+<script>
+  LSPanel.mount('Zoom');
+  if (new URLSearchParams(location.search).has('recording')) {
+    document.querySelector('.ls-consent button').click();
+    LSCollector.update('one', 'Alex Johnson', 'We will launch the onboarding flow on Friday.');
+    LSCollector.finalize('one');
+    LSCollector.update('two', 'Sarah Miller', 'I will finish the API review tomorrow.');
+    LSCollector.finalize('two');
+    LSCollector.update('three', 'Chris Lee', 'I can own QA and send the final checklist.');
+    LSCollector.finalize('three');
+  }
+</script>
+</body>
+</html>

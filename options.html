@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { max-width: 560px; margin: 40px auto; padding: 0 20px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color:#1a1a1a; }
+  h1 { font-size: 18px; }
+  label { display:block; font-weight:600; margin: 18px 0 6px; }
+  input, select { width:100%; padding:9px; border:1px solid #ccc; border-radius:8px; font-size:13px; box-sizing:border-box; }
+  .hint { color:#777; font-size:12px; margin-top:5px; }
+  .hint a { color:#2f6bff; }
+  button { margin-top:20px; padding:9px 18px; background:#2f6bff; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px; }
+  #status { margin-left:12px; color:#0a0; font-size:13px; }
+  .note { background:#fff8e6; border:1px solid #f0e0b0; border-radius:8px; padding:12px; font-size:12.5px; margin-top:24px; color:#6b5a1e; }
+</style>
+</head>
+<body>
+  <h1>LiveScribe settings</h1>
+
+  <label for="backend">Summarize using</label>
+  <select id="backend">
+    <option value="native">Local AI companion (native messaging)</option>
+    <option value="api">Anthropic API key — metered pay-per-use</option>
+  </select>
+
+  <div id="nativeBox">
+    <label for="provider">Model provider (subscription)</label>
+    <select id="provider">
+      <option value="claude">Claude Code — your Claude Pro/Max subscription</option>
+      <option value="codex">Codex — your ChatGPT subscription</option>
+    </select>
+    <div class="hint">Chrome launches the separately installed LiveScribe companion on demand. One-time setup, then no terminal is needed:<br>
+    1. Load this folder at <code>chrome://extensions</code> and copy the extension ID.<br>
+    2. In a terminal, once: <code>cd livescribe &amp;&amp; ./native-host/install.sh &lt;EXTENSION_ID&gt;</code><br>
+    3. Reload the extension, come back here, and click Test.</div>
+    <button id="testNative" style="background:#eee;color:#333;margin-top:8px">Test native host</button>
+    <span id="testNativeStatus" style="font-size:12px;margin-left:8px"></span>
+  </div>
+
+  <div id="apiBox" style="display:none">
+    <label for="key">Claude API key</label>
+    <input id="key" type="password" placeholder="sk-ant-..." autocomplete="off">
+    <div class="hint">Sent from your browser to api.anthropic.com. Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.</div>
+    <label for="model">Model</label>
+    <select id="model">
+      <option value="claude-sonnet-5">claude-sonnet-5 (fast, cheap — recommended)</option>
+      <option value="claude-opus-4-8">claude-opus-4-8 (best quality)</option>
+      <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 (cheapest)</option>
+    </select>
+  </div>
+
+  <div>
+    <button id="save">Save</button>
+    <span id="status"></span>
+  </div>
+
+  <div class="note">⚠️ <b>Consent reminder:</b> LiveScribe asks before every meeting. You are responsible for notifying participants and following the laws and policies that apply to your meeting.</div>
+
+  <script src="options.js"></script>
+</body>
+</html>

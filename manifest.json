@@ -1,0 +1,120 @@
+{
+  "manifest_version": 3,
+  "name": "LiveScribe \u2014 Meeting Transcript",
+  "version": "0.1.0",
+  "description": "Capture meeting captions with consent, ask questions during calls, and create notes. No meeting bot joins.",
+  "permissions": [
+    "storage",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "https://*.zoom.us/*",
+    "https://api.anthropic.com/*",
+    "https://meet.google.com/*",
+    "https://teams.cloud.microsoft/*",
+    "https://teams.live.com/*",
+    "https://teams.microsoft.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "LiveScribe transcripts"
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://meet.google.com/*"
+      ],
+      "js": [
+        "src/meetrtc.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://meet.google.com/*"
+      ],
+      "js": [
+        "src/collector.js",
+        "src/panel.js",
+        "src/autocapture.js",
+        "src/meet.js"
+      ],
+      "css": [
+        "src/panel.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://*.zoom.us/*"
+      ],
+      "js": [
+        "src/zoomstore.js",
+        "src/wshook.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://*.zoom.us/*"
+      ],
+      "js": [
+        "src/collector.js",
+        "src/panel.js",
+        "src/autocapture.js",
+        "src/zoom.js"
+      ],
+      "css": [
+        "src/panel.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://teams.microsoft.com/*",
+        "https://teams.live.com/*",
+        "https://teams.cloud.microsoft/*"
+      ],
+      "js": [
+        "src/wshook.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://teams.microsoft.com/*",
+        "https://teams.live.com/*",
+        "https://teams.cloud.microsoft/*"
+      ],
+      "js": [
+        "src/collector.js",
+        "src/panel.js",
+        "src/autocapture.js",
+        "src/teams.js"
+      ],
+      "css": [
+        "src/panel.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "icons": {
+    "16": "src/icons/icon16.png",
+    "48": "src/icons/icon48.png",
+    "128": "src/icons/icon128.png"
+  }
+}

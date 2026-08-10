@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>LiveScribe panel preview</title>
+<link rel="stylesheet" href="../src/panel.css">
+<style>
+  body { margin:0; min-height:100vh; background:#0e1116;
+         font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,sans-serif; }
+  .stage { position:absolute; inset:0;
+           background: radial-gradient(1100px 560px at 32% 42%, #1b2230 0%, #0e1116 72%); }
+  .bar { position:fixed; left:16px; top:16px; z-index:1; display:flex; gap:8px; flex-wrap:wrap; max-width:340px; }
+  .bar button { padding:6px 12px; border-radius:8px; border:1px solid #333; background:#1b1f27;
+                color:#ddd; font-size:12px; cursor:pointer; font-family:inherit; }
+  .bar button:hover { background:#262b35; }
+  .note { position:fixed; left:16px; bottom:16px; color:#6b7280; font-size:12px; max-width:340px; line-height:1.6; }
+  .note b { color:#9aa2b1; }
+</style>
+</head>
+<body>
+<div class="stage"></div>
+<div class="bar">
+  <button onclick="setTheme('light')">Light</button>
+  <button onclick="setTheme('dark')">Dark</button>
+  <button onclick="show('gate')">1 · Consent gate</button>
+  <button onclick="show('empty')">2 · Listening</button>
+  <button onclick="show('live')">3 · Live transcript</button>
+</div>
+<div class="note">
+  <b>Try it:</b> click any transcript line to highlight it. Click a suggested question
+  or type one and press Enter — the answer is faked here, but the flow is the real one.
+  <br><br>Preview only: no extension, no meeting.
+</div>
+
+<script>
+const TRANSCRIPT = [
+  { speaker:'Alex Johnson',  t:4000,  text:"Hello, hello. Are you able to hear me okay?" },
+  { speaker:'Sarah Miller', t:11000, text:"Yeah, coming through clearly." },
+  { speaker:'Sarah Miller', t:16000, text:"I wanted to walk through the onboarding flow before Friday." },
+  { speaker:'Chris Lee',         t:24000, text:"Sounds good. I'll take QA on Thursday once the build is up." },
+  { speaker:'Alex Johnson',  t:33000, text:"Then let's cut the dashboard from v1 and keep the scope tight." },
+];
+const LIVE = { speaker:'Alex Johnson', text:"I'll write the docs and we ship on" };
+const QUICK = ['What are the key points so far?','List action items','Suggest 3 follow-up questions'];
+
+const h=(t,c,x)=>{const n=document.createElement(t); if(c)n.className=c; if(x!=null)n.textContent=x; return n;};
+const fmt=ms=>{const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');};
+
+let mode='gate', theme='light';
+const hl = new Set();
+
+function build(){
+  document.getElementById('ls-panel')?.remove();
+  const el=h('div'); el.id='ls-panel';
+  el.innerHTML=`
+    <div class="ls-head">
+      <span class="ls-dot"></span><span class="ls-title">LiveScribe</span>
+      <span class="ls-save"></span><span class="ls-time">04:12</span>
+      <button class="ls-iconbtn">–</button><button class="ls-iconbtn">✕</button>
+    </div>
+    <div class="ls-body"></div>
+    <div class="ls-ask">
+      <div class="ls-quick"></div>
+      <div class="ls-askrow">
+        <input class="ls-input" placeholder="Ask me anything…">
+        <button class="ls-btn ls-primary ls-send">Ask</button>
+      </div>
+      <div class="ls-answer" hidden></div>
+    </div>
+    <div class="ls-foot">
+      <button class="ls-btn">Pause</button>
+      <button class="ls-btn">Copy</button>
+      <button class="ls-btn ls-primary">End &amp; Summarize</button>
+    </div>
+    <div class="ls-toast"></div>`;
+  document.body.appendChild(el);
+  const body=el.querySelector('.ls-body');
+  const save=el.querySelector('.ls-save');
+
+  if (mode==='gate') {
+    el.classList.add('ls-gate');
+    const box=h('div','ls-consent');
+    box.appendChild(h('strong',null,'Transcribe this meeting?'));
+    box.appendChild(h('p','ls-sub',"LiveScribe reads the captions this meeting already produces. No bot joins and no audio is recorded."));
+    const row=h('div','ls-consentrow');
+    const a=h('button','ls-btn ls-primary','Yes, this time');
+    const b=h('button','ls-btn','Yes, always');
+    const c=h('button','ls-btn','No');
+    a.onclick=()=>show('empty'); b.onclick=()=>show('empty'); c.onclick=()=>toast(el,'Dismissed');
+    row.append(a,b,c); box.appendChild(row); body.appendChild(box);
+  } else if (mode==='empty') {
+    save.textContent='saves in 30s';
+    const e=h('div','ls-empty');
+    e.appendChild(h('strong',null,'Listening…'));
+    e.appendChild(document.createTextNode('Start talking during the meeting to see the transcript here.'));
+    body.appendChild(e);
+  } else {
+    save.textContent='saves in 12s';
+    const frag=document.createDocumentFragment();
+    let turn=null,last=null;
+    TRANSCRIPT.forEach((l,i)=>{
+      if(l.speaker!==last){
+        turn=h('div','ls-turn');
+        const who=h('div','ls-who');
+        who.appendChild(h('span','ls-name',l.speaker));
+        who.appendChild(h('span','ls-at',fmt(l.t)));
+        turn.appendChild(who); frag.appendChild(turn); last=l.speaker;
+      }
+      const p=h('div','ls-text'+(hl.has(i)?' ls-hl':''),l.text);
+      p.title='Click to highlight';
+      p.onclick=()=>{ hl.has(i)?hl.delete(i):hl.add(i); build(); setTheme(theme);
+                      toast(document.getElementById('ls-panel'), hl.has(i)?'Highlighted':'Highlight removed'); };
+      turn.appendChild(p);
+    });
+    if(LIVE.speaker!==last){
+      turn=h('div','ls-turn'); const who=h('div','ls-who');
+      who.appendChild(h('span','ls-name',LIVE.speaker)); turn.appendChild(who); frag.appendChild(turn);
+    }
+    turn.appendChild(h('div','ls-text ls-live-text',LIVE.text));
+    body.appendChild(frag);
+    body.scrollTop=body.scrollHeight;
+  }
+
+  const quick=el.querySelector('.ls-quick');
+  QUICK.forEach(q=>{ const b=h('button','ls-chip',q); b.onclick=()=>fakeAsk(el,q); quick.appendChild(b); });
+  el.querySelector('.ls-send').onclick=()=>fakeAsk(el, el.querySelector('.ls-input').value);
+  el.querySelector('.ls-input').addEventListener('keydown',e=>{ if(e.key==='Enter') fakeAsk(el,e.target.value); });
+  return el;
+}
+
+function fakeAsk(el,q){
+  q=(q||'').trim(); if(!q) return;
+  const a=el.querySelector('.ls-answer');
+  a.hidden=false; a.textContent='Thinking…';
+  setTimeout(()=>{
+    a.textContent = hl.size
+      ? `(preview) "${q}"\n\n• Onboarding ships Friday; dashboard cut from v1\n• Chris Lee owns QA on Thursday\n\nBased on ${hl.size} highlighted line(s).`
+      : `(preview) "${q}"\n\n• Onboarding ships Friday; dashboard cut from v1\n• Chris Lee owns QA on Thursday`;
+  },600);
+}
+function toast(el,msg){ const t=el.querySelector('.ls-toast'); t.textContent=msg;
+  t.classList.add('ls-show'); setTimeout(()=>t.classList.remove('ls-show'),1400); }
+
+function setTheme(m){
+  theme=m; document.documentElement.style.colorScheme=m;
+  const el=document.getElementById('ls-panel'); if(!el) return;
+  const vars = m==='dark'
+    ? {'--ls-bg':'#1c1c20','--ls-fg':'#fafafa','--ls-muted':'#a1a1aa',
+       '--ls-muted-bg':'rgba(255,255,255,.06)','--ls-border':'rgba(255,255,255,.10)'}
+    : {'--ls-bg':'#ffffff','--ls-fg':'#18181b','--ls-muted':'#71717a',
+       '--ls-muted-bg':'#f4f4f5','--ls-border':'rgba(0,0,0,.09)'};
+  for(const [k,v] of Object.entries(vars)) el.style.setProperty(k,v);
+}
+function show(m){ mode=m; build(); setTheme(theme); }
+
+show('gate');
+</script>
+</body>
+</html>
