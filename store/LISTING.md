@@ -47,6 +47,10 @@ Requirements:
 - Zoom, Google Meet, and Microsoft Teams host access: detects supported meeting routes and reads captions only after user consent.
 - `api.anthropic.com`: sends prompts and selected transcript content to Anthropic only when the user chooses the Anthropic API option and invokes AI.
 
+Remote code declaration:
+
+- LiveScribe does not use remote code. All executable JavaScript is packaged with the extension. Anthropic responses are text data and are never executed as code.
+
 ## Privacy dashboard declarations
 
 Data handled:
