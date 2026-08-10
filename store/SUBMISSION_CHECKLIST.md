@@ -4,8 +4,8 @@
 
 - [ ] Register the Chrome Web Store developer account and enable two-step verification.
 - [ ] Choose and verify the publisher name and support email.
-- [ ] Confirm the privacy policy is live at `https://wenqiw777.github.io/livescribe-store/privacy.html`.
-- [ ] Confirm the support page is live at `https://wenqiw777.github.io/livescribe-store/support.html`.
+- [x] Confirm the privacy policy is live at `https://wenqiw777.github.io/livescribe-store/privacy.html`.
+- [x] Confirm the support page is live at `https://wenqiw777.github.io/livescribe-store/support.html`.
 - [ ] If local Codex AI is advertised publicly, publish signed/trustworthy companion installation instructions and a download location.
 
 ## Dashboard

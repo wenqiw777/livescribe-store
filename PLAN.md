@@ -41,10 +41,12 @@
 - [x] Build a static Home, Privacy, and Support site with no analytics, third-party scripts, or tracking cookies.
 - [x] Add a GitHub Actions Pages deployment workflow.
 - [x] Verify desktop and mobile rendering in Chrome with no console warnings or errors.
-- [ ] Publish the repository and confirm the public Pages URLs return successfully.
+- [x] Publish the repository and confirm the public Pages URLs return successfully.
 
 Local evidence:
 
 - Chrome accessibility snapshots exposed the intended headings, navigation, policy sections, and privacy summary.
 - Desktop and 390x844 mobile screenshots were visually inspected.
 - `node test/store-readiness.test.js`, `node test/preflight.js`, and `git diff --check` passed after adding the site.
+- GitHub Pages workflow run `31441587107` completed successfully with current Node 24-compatible action versions.
+- Home, Privacy, and Support public URLs each returned HTTP 200 after deployment.
