@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="LiveScribe privacy policy and data handling details.">
+  <title>Privacy — LiveScribe</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><circle cx=%2216%22 cy=%2216%22 r=%2210%22 fill=%22%23eb575f%22/></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-shell site-header">
+    <a class="brand" href="index.html"><span class="record-dot"></span>LiveScribe</a>
+    <nav class="site-nav" aria-label="Primary navigation">
+      <a href="privacy.html" aria-current="page">Privacy</a>
+      <a href="support.html">Support</a>
+    </nav>
+  </header>
+
+  <main class="site-shell content-page">
+    <div class="page-intro">
+      <div><div class="eyebrow">Effective August 10, 2026</div><h1>Privacy, in plain language.</h1></div>
+      <p>LiveScribe captures captions only after you start it. It does not join meetings as a bot and does not record meeting audio.</p>
+    </div>
+
+    <div class="policy-layout">
+      <aside class="policy-index" aria-label="Privacy policy sections">
+        <div class="utility-label">On this page</div>
+        <a href="#data">Data handled</a>
+        <a href="#consent">Consent</a>
+        <a href="#storage">Storage</a>
+        <a href="#ai">AI processing</a>
+        <a href="#permissions">Permissions</a>
+        <a href="#security">Security</a>
+        <a href="#contact">Contact</a>
+      </aside>
+
+      <article class="policy-copy">
+        <section id="data">
+          <h2>Data LiveScribe handles</h2>
+          <p>LiveScribe may handle meeting captions, speaker names supplied by the meeting platform, meeting page title and URL, transcript highlights, questions entered by the user, generated answers and summaries, and an Anthropic API key if the user chooses that AI option.</p>
+        </section>
+
+        <section id="consent">
+          <h2>Consent</h2>
+          <div class="callout">LiveScribe asks before starting transcription for every meeting.</div>
+          <p>Users are responsible for notifying meeting participants and complying with applicable laws, organizational policies, and meeting-platform rules.</p>
+        </section>
+
+        <section id="storage">
+          <h2>Storage and retention</h2>
+          <p>Transcripts, answers, summaries, and meeting metadata are stored in Chrome local extension storage on the user's device. LiveScribe retains up to 50 sessions and allows users to delete sessions from the extension popup. Uninstalling the extension removes its Chrome extension storage.</p>
+          <p>An Anthropic API key is stored in Chrome local extension storage and is not placed in Chrome sync storage.</p>
+        </section>
+
+        <section id="ai">
+          <h2>AI processing and sharing</h2>
+          <p>AI processing occurs only when the user asks a question, requests a summary, or tests an AI connection.</p>
+          <h3>Local AI companion</h3>
+          <p>The selected transcript content and prompt are sent through Chrome Native Messaging to software installed on the same computer.</p>
+          <h3>Anthropic API</h3>
+          <p>If selected, transcript content, the prompt, and the user-provided API key are sent directly over HTTPS to Anthropic. Anthropic processes that data under its own terms and privacy policy.</p>
+          <p>LiveScribe does not operate a developer-controlled transcript server. The developer does not sell meeting data, use it for advertising, or permit humans to read it.</p>
+        </section>
+
+        <section id="permissions">
+          <h2>Permissions</h2>
+          <ul>
+            <li>Supported meeting-site access detects meeting routes and reads captions only after user consent.</li>
+            <li>Chrome storage saves settings, transcripts, summaries, and the optional API key.</li>
+            <li>Native Messaging communicates with the separately installed local AI companion.</li>
+            <li>Anthropic host access supports the optional direct API connection selected by the user.</li>
+          </ul>
+        </section>
+
+        <section id="security">
+          <h2>Security</h2>
+          <p>External API traffic uses HTTPS. Communication with the local companion uses Chrome's Native Messaging channel. Users should protect API keys and meeting transcripts as sensitive information.</p>
+        </section>
+
+        <section id="contact">
+          <h2>Changes and contact</h2>
+          <p>Material changes to these practices will be disclosed in the extension and this policy before new data handling begins. For privacy questions, use the support options on the <a href="support.html">LiveScribe support page</a>.</p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-shell site-footer"><span>© 2026 LiveScribe Team</span><span>Privacy policy · Version 1.0</span></footer>
+</body>
+</html>

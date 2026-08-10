@@ -61,5 +61,5 @@ Data uses:
 - No advertising, profiling, sale, or unrelated analytics
 - No developer-controlled transcript server
 
-Privacy policy URL: publish `store/PRIVACY.md` at a public HTTPS URL before submission.
-Support URL/contact: configure the publisher's support destination before submission.
+Privacy policy URL: `https://wenqiw777.github.io/livescribe-store/privacy.html`
+Support URL: `https://wenqiw777.github.io/livescribe-store/support.html`

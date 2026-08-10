@@ -35,3 +35,16 @@
 - The native messaging companion remains in this repository for users who choose local Codex, but is excluded from the Store ZIP because Chrome Web Store cannot install native applications.
 - No remote upload or Chrome Web Store submission is authorized in this task.
 - Dashboard registration, public privacy/support URLs, companion distribution URL, and a final authenticated real-Zoom pass remain publisher-owned gates documented in `store/SUBMISSION_CHECKLIST.md`.
+
+## GitHub Pages
+
+- [x] Build a static Home, Privacy, and Support site with no analytics, third-party scripts, or tracking cookies.
+- [x] Add a GitHub Actions Pages deployment workflow.
+- [x] Verify desktop and mobile rendering in Chrome with no console warnings or errors.
+- [ ] Publish the repository and confirm the public Pages URLs return successfully.
+
+Local evidence:
+
+- Chrome accessibility snapshots exposed the intended headings, navigation, policy sections, and privacy summary.
+- Desktop and 390x844 mobile screenshots were visually inspected.
+- `node test/store-readiness.test.js`, `node test/preflight.js`, and `git diff --check` passed after adding the site.

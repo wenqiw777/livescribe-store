@@ -4,8 +4,8 @@
 
 - [ ] Register the Chrome Web Store developer account and enable two-step verification.
 - [ ] Choose and verify the publisher name and support email.
-- [ ] Host `PRIVACY.md` at a public HTTPS URL and paste that URL into `LISTING.md` and the dashboard.
-- [ ] Publish a stable HTTPS support page or repository URL.
+- [ ] Confirm the privacy policy is live at `https://wenqiw777.github.io/livescribe-store/privacy.html`.
+- [ ] Confirm the support page is live at `https://wenqiw777.github.io/livescribe-store/support.html`.
 - [ ] If local Codex AI is advertised publicly, publish signed/trustworthy companion installation instructions and a download location.
 
 ## Dashboard
