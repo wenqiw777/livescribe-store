@@ -23,6 +23,10 @@ The public settings UI exposes only the two direct API options. A transparent 28
 
 The localhost HTTP bridge is intentionally absent from this Store repository and Store ZIP.
 
+## License
+
+LiveScribe is open source under the [MIT License](LICENSE).
+
 ## Verify
 
 ```sh
