@@ -38,7 +38,7 @@
       <article class="policy-copy">
         <section id="data">
           <h2>Data LiveScribe handles</h2>
-          <p>LiveScribe may handle meeting captions, speaker names supplied by the meeting platform, meeting page title and URL, transcript highlights, questions entered by the user, generated answers and summaries, and an Anthropic API key if the user chooses that AI option.</p>
+          <p>LiveScribe may handle meeting captions, speaker names supplied by the meeting platform, meeting page title and URL, transcript highlights, questions entered by the user, generated answers and summaries, and an Anthropic or OpenAI API key if the user chooses that AI option.</p>
         </section>
 
         <section id="consent">
@@ -50,7 +50,7 @@
         <section id="storage">
           <h2>Storage and retention</h2>
           <p>Transcripts, answers, summaries, and meeting metadata are stored in Chrome local extension storage on the user's device. LiveScribe retains up to 50 sessions and allows users to delete sessions from the extension popup. Uninstalling the extension removes its Chrome extension storage.</p>
-          <p>An Anthropic API key is stored in Chrome local extension storage and is not placed in Chrome sync storage.</p>
+          <p>Optional Anthropic and OpenAI API keys are stored in Chrome local extension storage and are not placed in Chrome sync storage.</p>
         </section>
 
         <section id="ai">
@@ -60,6 +60,8 @@
           <p>The selected transcript content and prompt are sent through Chrome Native Messaging to software installed on the same computer.</p>
           <h3>Anthropic API</h3>
           <p>If selected, transcript content, the prompt, and the user-provided API key are sent directly over HTTPS to Anthropic. Anthropic processes that data under its own terms and privacy policy.</p>
+          <h3>OpenAI API</h3>
+          <p>If selected, transcript content, the prompt, and the user-provided API key are sent directly over HTTPS to OpenAI. OpenAI processes that data under its own terms and privacy policy.</p>
           <p>LiveScribe does not operate a developer-controlled transcript server. The developer does not sell meeting data, use it for advertising, or permit humans to read it.</p>
         </section>
 
@@ -69,7 +71,7 @@
             <li>Supported meeting-site access detects meeting routes and reads captions only after user consent.</li>
             <li>Chrome storage saves settings, transcripts, summaries, and the optional API key.</li>
             <li>Native Messaging communicates with the separately installed local AI companion.</li>
-            <li>Anthropic host access supports the optional direct API connection selected by the user.</li>
+            <li>Anthropic and OpenAI host access supports the corresponding optional direct API connection selected by the user.</li>
           </ul>
         </section>
 

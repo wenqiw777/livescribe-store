@@ -1,21 +1,25 @@
 const $ = id => document.getElementById(id);
-const backendEl = $('backend'), keyEl = $('key'), modelEl = $('model');
+const backendEl = $('backend');
 const providerEl = $('provider');
 const statusEl = $('status');
 
 function syncVisibility() {
-  const b = backendEl.value;
-  $('nativeBox').style.display = b === 'native' ? '' : 'none';
-  $('apiBox').style.display = b === 'api' ? '' : 'none';
+  const backend = backendEl.value;
+  $('nativeBox').style.display = backend === 'native' ? '' : 'none';
+  $('anthropicBox').style.display = backend === 'anthropic' ? '' : 'none';
+  $('openaiBox').style.display = backend === 'openai' ? '' : 'none';
 }
 backendEl.onchange = syncVisibility;
 
-chrome.storage.sync.get(['model', 'backend', 'provider'], (c) => {
-  chrome.storage.local.get(['apiKey'], (local) => {
-    providerEl.value = c.provider || 'codex';
-    backendEl.value = c.backend || (local.apiKey ? 'api' : 'native');
-    if (local.apiKey) keyEl.value = local.apiKey;
-    if (c.model) modelEl.value = c.model;
+chrome.storage.sync.get(['backend', 'provider', 'model', 'anthropicModel', 'openaiModel'], (settings) => {
+  chrome.storage.local.get(['apiKey', 'anthropicApiKey', 'openaiApiKey'], (local) => {
+    const savedBackend = settings.backend === 'api' ? 'anthropic' : settings.backend;
+    backendEl.value = savedBackend || '';
+    providerEl.value = settings.provider || 'codex';
+    $('anthropicKey').value = local.anthropicApiKey || local.apiKey || '';
+    $('openaiKey').value = local.openaiApiKey || '';
+    $('anthropicModel').value = settings.anthropicModel || settings.model || 'claude-sonnet-5';
+    $('openaiModel').value = settings.openaiModel || 'gpt-5';
     syncVisibility();
   });
 });
@@ -24,28 +28,30 @@ $('save').onclick = () => {
   chrome.storage.sync.set({
     backend: backendEl.value,
     provider: providerEl.value,
-    model: modelEl.value,
+    anthropicModel: $('anthropicModel').value,
+    openaiModel: $('openaiModel').value.trim() || 'gpt-5',
   }, () => {
-    chrome.storage.local.set({ apiKey: keyEl.value.trim() }, () => {
-      statusEl.textContent = 'Saved ✓';
-      setTimeout(() => (statusEl.textContent = ''), 1500);
+    chrome.storage.local.set({
+      anthropicApiKey: $('anthropicKey').value.trim(),
+      openaiApiKey: $('openaiKey').value.trim(),
+    }, () => {
+      statusEl.textContent = backendEl.value ? 'Saved ✓' : 'Saved — AI is off';
+      setTimeout(() => (statusEl.textContent = ''), 1800);
     });
   });
 };
 
 $('testNative').onclick = () => {
-  const s = $('testNativeStatus');
-  s.textContent = 'Testing… (launches host, ~6s)'; s.style.color = '#666';
-  try {
-    chrome.runtime.sendNativeMessage('com.livescribe.summarizer',
-      { prompt: 'Reply with exactly: OK', provider: providerEl.value }, (resp) => {
-      if (chrome.runtime.lastError) {
-        s.textContent = '✗ ' + chrome.runtime.lastError.message + ' — did you run install.sh with this extension id?';
-        s.style.color = '#d00'; return;
-      }
-      if (resp && resp.error) { s.textContent = '✗ host error: ' + resp.error; s.style.color = '#d00'; return; }
-      s.textContent = 'Connected ✓ host replied: ' + JSON.stringify(resp && resp.summary || resp).slice(0, 60);
-      s.style.color = '#0a0';
-    });
-  } catch (e) { s.textContent = '✗ ' + e.message; s.style.color = '#d00'; }
+  const status = $('testNativeStatus');
+  status.textContent = 'Testing…'; status.style.color = '#666';
+  chrome.runtime.sendMessage({ type: 'AI_STATUS', probeNative: true }, (result) => {
+    if (chrome.runtime.lastError) {
+      status.textContent = '✗ ' + chrome.runtime.lastError.message; status.style.color = '#d00'; return;
+    }
+    if (!result || !result.ready) {
+      status.textContent = '✗ ' + ((result && result.reason) || 'Companion not found. Install it, then reload Chrome.');
+      status.style.color = '#d00'; return;
+    }
+    status.textContent = 'Connected ✓'; status.style.color = '#0a0';
+  });
 };

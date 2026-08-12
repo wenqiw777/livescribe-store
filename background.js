@@ -150,6 +150,45 @@ function callNative(prompt, provider, model) {
   });
 }
 
+function pingNative() {
+  return new Promise((resolve) => {
+    try {
+      chrome.runtime.sendNativeMessage(NATIVE_HOST, { type: 'ping' }, (resp) => {
+        if (chrome.runtime.lastError) {
+          resolve({ ready: false, reason: 'Companion is not installed or not authorized for this extension.' });
+          return;
+        }
+        resolve(resp && resp.ok
+          ? { ready: true }
+          : { ready: false, reason: (resp && resp.error) || 'Companion did not respond.' });
+      });
+    } catch (e) {
+      resolve({ ready: false, reason: 'Companion is unavailable: ' + e.message });
+    }
+  });
+}
+
+async function getAIStatus(probeNative = true) {
+  const cfg = await chrome.storage.sync.get(['backend']);
+  const backend = cfg.backend === 'api' ? 'anthropic' : (cfg.backend || '');
+  const keys = await chrome.storage.local.get(['apiKey', 'anthropicApiKey', 'openaiApiKey']);
+  if (!backend) return { configured: false, ready: false, backend, reason: 'Choose an AI option in LiveScribe settings.' };
+  if (backend === 'anthropic') {
+    const ready = !!(keys.anthropicApiKey || keys.apiKey);
+    return { configured: ready, ready, backend, reason: ready ? '' : 'Add your Anthropic API key in LiveScribe settings.' };
+  }
+  if (backend === 'openai') {
+    const ready = !!keys.openaiApiKey;
+    return { configured: ready, ready, backend, reason: ready ? '' : 'Add your OpenAI API key in LiveScribe settings.' };
+  }
+  if (backend === 'native') {
+    if (!probeNative) return { configured: true, ready: true, backend };
+    const probe = await pingNative();
+    return { configured: true, backend, ...probe };
+  }
+  return { configured: false, ready: false, backend, reason: 'Choose a supported AI option in LiveScribe settings.' };
+}
+
 const SUMMARY_PROMPT = `You are a meeting-notes assistant. Below is a raw, imperfect live-caption transcript of a meeting (speaker labels may be wrong or generic). Produce concise notes in the SAME language as the transcript.
 
 Use this markdown structure:
@@ -181,23 +220,43 @@ async function summarize(transcript, highlights) {
 
 // Runs an arbitrary prompt through whichever backend is configured.
 async function runPrompt(prompt, override = {}) {
-  const cfg = await chrome.storage.sync.get(['model', 'backend', 'provider']);
-  const { apiKey } = await chrome.storage.local.get(['apiKey']);
-  // Default to native messaging unless an API key is set with no explicit choice.
-  const backend = cfg.backend || (cfg.apiKey ? 'api' : 'native');
+  const cfg = await chrome.storage.sync.get(['model', 'backend', 'provider', 'anthropicModel', 'openaiModel']);
+  const keys = await chrome.storage.local.get(['apiKey', 'anthropicApiKey', 'openaiApiKey']);
+  const backend = cfg.backend === 'api' ? 'anthropic' : (cfg.backend || '');
   const provider = override.provider || (cfg.provider === 'codex' ? 'codex' : 'claude');
   const requestedModel = override.model || null;
 
+  if (!backend) return { error: 'AI is not configured. Open LiveScribe settings and choose an AI option.', code: 'AI_SETUP_REQUIRED' };
   if (backend === 'native') {
     return await callNative(prompt, provider, requestedModel);
   }
 
-  // The Anthropic API backend cannot run a Codex model. Fixed Codex routes use
-  // the installed native host and the user's existing Codex subscription.
-  if (provider === 'codex') return await callNative(prompt, provider, requestedModel);
+  if (backend === 'openai') {
+    if (!keys.openaiApiKey) return { error: 'Add your OpenAI API key in LiveScribe settings.', code: 'AI_SETUP_REQUIRED' };
+    let response;
+    try {
+      response = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + keys.openaiApiKey },
+        body: JSON.stringify({ model: cfg.openaiModel || 'gpt-5', input: prompt, max_output_tokens: 1500 }),
+      });
+    } catch (e) {
+      return { error: 'Network error calling OpenAI API: ' + e.message };
+    }
+    if (!response.ok) {
+      let detail = '';
+      try { detail = (await response.json())?.error?.message || ''; } catch (e) {}
+      return { error: `OpenAI API ${response.status}. ${detail}` };
+    }
+    const data = await response.json();
+    const summary = (data.output || []).flatMap(item => item.content || [])
+      .filter(item => item.type === 'output_text').map(item => item.text || '').join('').trim();
+    return { summary };
+  }
 
   // --- Anthropic API path ---
-  const { model = 'claude-sonnet-5' } = cfg;
+  const apiKey = keys.anthropicApiKey || keys.apiKey;
+  const model = cfg.anthropicModel || cfg.model || 'claude-sonnet-5';
   if (!apiKey) return { error: 'No Claude API key set. Open LiveScribe settings and paste your key, or use the local AI companion.' };
   let resp;
   try {
@@ -252,6 +311,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           provider: 'codex', model: ASK_MODEL,
         }));
       }
+      else if (msg.type === 'AI_STATUS') { sendResponse(await getAIStatus(msg.probeNative !== false)); }
+      else if (msg.type === 'OPEN_OPTIONS') { await chrome.runtime.openOptionsPage(); sendResponse({ ok: true }); }
       else if (msg.type === 'SAVE_SESSION') {
         const { lines, transcript, ...meta } = msg.session || {};
         await saveMeta(meta);

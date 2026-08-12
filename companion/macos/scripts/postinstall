@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euo pipefail
+
+HOST_NAME="com.livescribe.summarizer"
+HOST_PATH="/Library/Application Support/LiveScribe/livescribe-host"
+STORE_ID="gfhncbgjiechicicabgkmlmcljamdelf"
+MANIFEST=$(cat <<EOF
+{
+  "name": "$HOST_NAME",
+  "description": "LiveScribe Companion for local Codex and Claude subscriptions",
+  "path": "$HOST_PATH",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://$STORE_ID/"]
+}
+EOF
+)
+
+for directory in \
+  "/Library/Google/Chrome/NativeMessagingHosts" \
+  "/Library/Application Support/Chromium/NativeMessagingHosts" \
+  "/Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts" \
+  "/Library/Microsoft/Edge/NativeMessagingHosts"
+do
+  mkdir -p "$directory"
+  printf '%s\n' "$MANIFEST" > "$directory/$HOST_NAME.json"
+  chmod 644 "$directory/$HOST_NAME.json"
+done
+
+chmod 755 "$HOST_PATH"
+exit 0

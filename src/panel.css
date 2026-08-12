@@ -170,6 +170,20 @@
 
 /* ---- ask ---- */
 #ls-panel .ls-ask { border-top: 1px solid var(--ls-border); padding: 9px 12px; }
+#ls-panel .ls-ai-setup {
+  margin: 8px 0; padding: 9px 11px;
+  border: 1px solid #ead59a; border-radius: 9px;
+  background: #fff8e5; color: #66531b;
+  font-size: 12px; line-height: 1.4;
+}
+#ls-panel .ls-ai-setup[hidden] { display: none; }
+#ls-panel .ls-linkbtn {
+  border: 0; background: transparent; color: var(--ls-primary);
+  font: inherit; font-weight: 650; cursor: pointer; padding: 0 0 0 6px;
+}
+#ls-panel .ls-chip:disabled,
+#ls-panel .ls-send:disabled,
+#ls-panel .ls-input:disabled { opacity: .5; cursor: not-allowed; }
 #ls-panel .ls-quick { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 7px; }
 #ls-panel .ls-chip {
   font: inherit; font-size: 11.5px; cursor: pointer;

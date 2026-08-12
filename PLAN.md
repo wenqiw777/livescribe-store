@@ -1,5 +1,40 @@
 # Chrome Web Store release plan
 
+## 0.1.1 AI onboarding and Companion
+
+### Acceptance
+
+- A new install shows an explicit AI setup choice instead of defaulting to an unavailable native host.
+- Settings offer exactly three user-facing paths: Anthropic API key, OpenAI API key, or ChatGPT / Claude subscription through the Companion.
+- Anthropic and OpenAI API requests use the selected user's key and do not fall through to Native Messaging.
+- Caption capture, pause, copy, end, and transcript export continue to work with no AI configured.
+- Ask and Summarize are disabled with a clear setup link when AI is unconfigured or the selected Companion is unavailable.
+- The macOS Companion installer authorizes Store extension ID `gfhncbgjiechicicabgkmlmcljamdelf` without asking users to copy an ID or run a shell command.
+- `0.1.1` Store ZIP excludes Companion/native binaries; the Companion is a separate `.pkg` download.
+- Signed/notarized status is claimed only when a Developer ID Installer identity and successful Apple notary result are both verified.
+
+### Tasks
+
+- [x] Add red tests for AI choices, API routing, unavailable-AI degradation, and Store-ID authorization.
+- [x] Implement settings, provider routing, and in-meeting availability UI.
+- [x] Build the separate macOS Companion package and download flow.
+- [x] Run regression, browser UI, archive, installer, signature, and notarization checks.
+
+### 0.1.1 evidence
+
+- New red tests failed before implementation and now pass: `ai-options`, `ai-unavailable`, `companion-package`, and `companion-host`.
+- The existing regression suite passes except the Store-readiness assertions that were deliberately updated for the two-key storage shape; the updated Store-readiness test passes all 16 checks.
+- `node test/preflight.js` is clean, and `dist/livescribe-0.1.1.zip` passes `unzip -tq` with 21 runtime entries and no tests or Companion sources.
+- The Swift Companion host compiled and returned `{ok:true}` over real Chrome Native Messaging length-prefixed framing.
+- `dist/LiveScribe-Companion-0.1.1-unsigned.pkg` builds and contains `/Library/Application Support/LiveScribe/livescribe-host`; it is explicitly unsigned and is not a public release artifact.
+- Chrome UI verification confirmed the default `Choose how to use AI` state, all three options, and the visible `Download Companion for Mac` call to action. The Companion view screenshot was visually inspected.
+- A live OpenAI Responses smoke request using the user-selected local env file reached OpenAI but returned HTTP 401 `invalid_api_key`; no secret was printed or copied. Real OpenAI-key validation remains open.
+- `security find-identity` found Apple Development certificates but no Developer ID Installer identity, and no notarytool profile was found. Public signing/notarization remains externally blocked.
+
+### Current external gate
+
+- This Mac currently has Apple Development identities only. A public signed/notarized `.pkg` additionally requires a Developer ID Installer certificate and configured Apple notarization credentials.
+
 ## Acceptance
 
 - The separate development repository is unchanged by Store preparation.

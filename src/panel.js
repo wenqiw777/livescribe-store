@@ -74,6 +74,7 @@
       </div>
       <div class="ls-body"></div>
       <div class="ls-ask">
+        <div class="ls-ai-setup" hidden><span></span><button class="ls-linkbtn" data-act="settings">Open settings</button></div>
         <div class="ls-quick"></div>
         <div class="ls-askrow">
           <input class="ls-input" name="livescribe-question" placeholder="Ask me anything…" />
@@ -124,6 +125,29 @@
     setInterval(onTick, 1000);
     if (started) { el.classList.remove('ls-gate'); render(C.view()); }
     else renderConsent();
+    refreshAIStatus();
+  }
+
+  function setAIAvailability(status) {
+    if (!el) return;
+    const ready = !status || status.ready !== false;
+    const setup = el.querySelector('.ls-ai-setup');
+    const controls = [el.querySelector('.ls-input'), el.querySelector('[data-act="ask"]'), ...el.querySelectorAll('.ls-chip')];
+    controls.forEach(control => { if (control) control.disabled = !ready; });
+    if (setup) {
+      setup.hidden = ready;
+      const label = setup.querySelector('span');
+      if (label) label.textContent = ready ? '' : ((status && status.reason) || 'Set up AI to ask questions and create summaries.');
+    }
+  }
+
+  function refreshAIStatus() {
+    try {
+      chrome.runtime.sendMessage({ type: 'AI_STATUS', probeNative: true }, (status) => {
+        if (chrome.runtime.lastError) return;
+        setAIAvailability(status);
+      });
+    } catch (e) { /* transcription must remain available */ }
   }
 
   function elapsed() {
@@ -353,6 +377,9 @@
     if (act === 'min') el.classList.toggle('ls-min');
     else if (act === 'close') hidePanel();
     else if (act === 'ask') ask(el.querySelector('.ls-input').value);
+    else if (act === 'settings') {
+      try { chrome.runtime.sendMessage({ type: 'OPEN_OPTIONS' }, () => void chrome.runtime.lastError); } catch (e) {}
+    }
     else if (act === 'pause') {
       const on = !C.isRecording();
       C.setRecording(on);
@@ -471,6 +498,21 @@
     });
     row1.appendChild(sum);
     box.appendChild(row1);
+    const aiSetup = h('div', 'ls-ai-setup');
+    aiSetup.hidden = true;
+    aiSetup.appendChild(h('span'));
+    const settings = h('button', 'ls-linkbtn', 'Open settings');
+    settings.setAttribute('data-act', 'settings');
+    aiSetup.appendChild(settings);
+    box.appendChild(aiSetup);
+    try {
+      chrome.runtime.sendMessage({ type: 'AI_STATUS', probeNative: true }, (status) => {
+        if (chrome.runtime.lastError || !status || status.ready !== false) return;
+        sum.disabled = true;
+        aiSetup.hidden = false;
+        aiSetup.querySelector('span').textContent = status.reason || 'Set up AI to create a summary.';
+      });
+    } catch (e) {}
 
     const row2 = h('div', 'ls-consentrow');
     const md = h('button', 'ls-btn', 'Export .md');

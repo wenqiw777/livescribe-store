@@ -28,7 +28,7 @@ Features:
 - Export completed transcripts as Markdown or text
 - Local transcript storage with session deletion controls
 
-AI is optional. Users can install the separate local LiveScribe AI companion or provide their own Anthropic API key. Transcript content is sent for AI processing only when the user asks a question or requests a summary.
+AI is optional and off by default. Users can provide their own Anthropic API key, provide their own OpenAI API key, or install the separate LiveScribe Companion for local ChatGPT/Claude subscription access. Transcript content is sent for AI processing only when the user asks a question or requests a summary.
 
 Requirements:
 
@@ -55,7 +55,7 @@ LiveScribe creates user-authorized transcripts and notes from captions already p
 
 ### Host permission justification
 
-LiveScribe uses host permissions for Zoom, Google Meet, and Microsoft Teams to detect supported browser meeting routes and read live captions only after the user explicitly starts transcription. The api.anthropic.com permission is used only when the user selects the Anthropic API option and actively invokes Ask or Summarize. LiveScribe does not collect unrelated browsing activity.
+LiveScribe uses host permissions for Zoom, Google Meet, and Microsoft Teams to detect supported browser meeting routes and read live captions only after the user explicitly starts transcription. The api.anthropic.com and api.openai.com permissions are used only when the user selects the corresponding API option and actively invokes Ask or Summarize. LiveScribe does not collect unrelated browsing activity.
 
 ### nativeMessaging justification
 
@@ -67,7 +67,7 @@ LiveScribe does not use remote code. All executable JavaScript is included in th
 
 ### storage justification
 
-The storage permission saves user settings, meeting transcripts, meeting metadata, highlights, generated answers, and summaries in Chrome extension storage. LiveScribe retains up to 50 local sessions and lets users delete sessions from the popup. A user-provided Anthropic API key is stored in chrome.storage.local; chrome.storage.sync contains only non-sensitive preferences such as the selected backend, provider, and model.
+The storage permission saves user settings, meeting transcripts, meeting metadata, highlights, generated answers, and summaries in Chrome extension storage. LiveScribe retains up to 50 local sessions and lets users delete sessions from the popup. User-provided Anthropic and OpenAI API keys are stored in chrome.storage.local; chrome.storage.sync contains only non-sensitive preferences such as the selected backend, provider, and model.
 
 ### Privacy policy URL
 

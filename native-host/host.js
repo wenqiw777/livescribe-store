@@ -118,6 +118,7 @@ process.stdin.on('data', (chunk) => {
     buf = buf.slice(4 + len);
     let msg;
     try { msg = JSON.parse(raw.toString('utf8')); } catch (e) { send({ error: 'bad json' }); continue; }
+    if (msg && msg.type === 'ping') { send({ ok: true }); continue; }
     // Serialize handling so responses stay ordered.
     busy = busy.then(async () => {
       if (!msg || typeof msg.prompt !== 'string') { send({ error: 'missing prompt' }); return; }
