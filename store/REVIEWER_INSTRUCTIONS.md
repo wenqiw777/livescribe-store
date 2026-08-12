@@ -16,7 +16,7 @@ No account or paid service is required to test the core extension.
 
 AI is an optional extension of the same meeting-notes purpose and requires user configuration:
 
-- Local AI companion: requires the separately installed native host `com.livescribe.summarizer`. The companion source and installer are in the source repository but are intentionally not part of the Chrome Web Store ZIP.
+- Developer-only local AI debugging: the public selector does not expose this mode. For review transparency, clicking the transparent 28 px area at the bottom-left of the settings page reveals the Native Messaging controls. It requires the separately registered host `com.livescribe.summarizer`; no host is included in the Store ZIP.
 - Anthropic API: requires the reviewer's own Anthropic API key in LiveScribe settings. The key is stored in Chrome local extension storage. Requests go directly to `https://api.anthropic.com` only when Ask or Summarize is invoked.
 - OpenAI API: requires the reviewer's own OpenAI API key in LiveScribe settings. The key is stored in Chrome local extension storage. Requests go directly to `https://api.openai.com` only when Ask or Summarize is invoked.
 - With no AI option selected, transcription, pause, copy, end, and export remain available; Ask and Summarize show a settings prompt and stay disabled.

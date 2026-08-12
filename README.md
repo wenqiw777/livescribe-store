@@ -16,9 +16,10 @@ This repository is the isolated Chrome Web Store release edition. Store packagin
 
 - **Anthropic API:** enter a personal API key in extension settings. Requests go directly to Anthropic over HTTPS.
 - **OpenAI API:** enter a personal API key in extension settings. Requests go directly to OpenAI over HTTPS.
-- **ChatGPT / Claude subscription:** install the separate Mac Companion package. It already authorizes the public Store extension ID; users do not copy an ID or run a Terminal command.
 
 AI is off on a new install. Transcription and export work without AI; Ask and Summarize remain disabled until one option is ready.
+
+The public settings UI exposes only the two direct API options. A transparent 28 px control at the bottom-left of the settings page enables the developer-only Native Messaging backend for local debugging.
 
 The localhost HTTP bridge is intentionally absent from this Store repository and Store ZIP.
 

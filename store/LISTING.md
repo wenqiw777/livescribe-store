@@ -32,7 +32,7 @@ Features:
 - Export completed transcripts as Markdown or text
 - Local transcript storage with session deletion controls
 
-AI is optional and is off until the user chooses one of three options: their own Anthropic API key, their own OpenAI API key, or the separately installed LiveScribe Companion for a local ChatGPT/Claude subscription. Transcript content is sent for AI processing only when the user asks a question or requests a summary. Caption transcription and export continue to work without AI.
+AI is optional and is off until the user provides their own Anthropic or OpenAI API key. Transcript content is sent for AI processing only when the user asks a question or requests a summary. Caption transcription and export continue to work without AI.
 
 Requirements:
 
@@ -43,7 +43,7 @@ Requirements:
 ## Permission justifications
 
 - `storage`: saves extension settings, transcripts, summaries, and the optional user-provided API key.
-- `nativeMessaging`: communicates with the separately installed local AI companion when the user selects local AI.
+- `nativeMessaging`: supports a developer-only local debugging interface; it is not part of the public AI setup flow.
 - Zoom, Google Meet, and Microsoft Teams host access: detects supported meeting routes and reads captions only after user consent.
 - `api.anthropic.com`: sends prompts and selected transcript content to Anthropic only when the user chooses the Anthropic API option and invokes AI.
 - `api.openai.com`: sends prompts and selected transcript content to OpenAI only when the user chooses the OpenAI API option and invokes AI.

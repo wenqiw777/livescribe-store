@@ -238,7 +238,7 @@ async function runPrompt(prompt, override = {}) {
       response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: 'Bearer ' + keys.openaiApiKey },
-        body: JSON.stringify({ model: cfg.openaiModel || 'gpt-5', input: prompt, max_output_tokens: 1500 }),
+        body: JSON.stringify({ model: cfg.openaiModel || 'gpt-5.6-luna', input: prompt, max_output_tokens: 1500 }),
       });
     } catch (e) {
       return { error: 'Network error calling OpenAI API: ' + e.message };

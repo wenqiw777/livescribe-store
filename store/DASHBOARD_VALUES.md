@@ -28,7 +28,7 @@ Features:
 - Export completed transcripts as Markdown or text
 - Local transcript storage with session deletion controls
 
-AI is optional and off by default. Users can provide their own Anthropic API key, provide their own OpenAI API key, or install the separate LiveScribe Companion for local ChatGPT/Claude subscription access. Transcript content is sent for AI processing only when the user asks a question or requests a summary.
+AI is optional and off by default. Users can provide their own Anthropic or OpenAI API key. Transcript content is sent for AI processing only when the user asks a question or requests a summary.
 
 Requirements:
 
@@ -59,7 +59,7 @@ LiveScribe uses host permissions for Zoom, Google Meet, and Microsoft Teams to d
 
 ### nativeMessaging justification
 
-The nativeMessaging permission supports the optional local AI companion selected and installed by the user. When the user invokes Ask, Summarize, or Test connection, LiveScribe sends the selected prompt and transcript content through Chrome Native Messaging to the companion on the same computer. It is not used for advertising, analytics, tracking, or automatic background data collection.
+The nativeMessaging permission supports a developer-only local debugging interface that is not shown in the public AI selector. When that interface is explicitly enabled and Ask, Summarize, or Test connection is invoked, LiveScribe sends the selected prompt and transcript content through Chrome Native Messaging to a host already registered on the same computer. It is not used for advertising, analytics, tracking, or automatic background data collection.
 
 ### Remote code justification
 

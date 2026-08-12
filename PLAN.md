@@ -85,3 +85,21 @@ Local evidence:
 - `node test/store-readiness.test.js`, `node test/preflight.js`, and `git diff --check` passed after adding the site.
 - GitHub Pages workflow run `31441587107` completed successfully with current Node 24-compatible action versions.
 - Home, Privacy, and Support public URLs each returned HTTP 200 after deployment.
+
+## 0.1.1 private Companion debug entry and OpenAI model selector
+
+Result:
+
+- [x] Public AI setup exposes only Anthropic API and OpenAI API.
+- [x] A transparent 28 px bottom-left settings control enables the private Native Messaging backend and reveals its test controls.
+- [x] Companion never appears as an option in the public `Use AI with` selector.
+- [x] OpenAI model selection is a dropdown with GPT-5.6 Luna/Terra/Sol plus supported earlier GPT-5 models; Luna is the default.
+- [x] Existing saved model IDs remain selectable after upgrade.
+
+Evidence:
+
+- `test/debug-companion.test.js`: 8 checks pass after reproducing the missing hidden control and public Companion leakage as failures.
+- `test/ai-options.test.js`: API routing and all current/earlier dropdown model checks pass after reproducing the missing dropdown options as failures.
+- Chrome UI pass confirmed 10 OpenAI model choices, successful selection of `gpt-5-mini`, no Companion entry in the public backend dropdown, and no Console errors.
+- The corrected Companion screenshot shows the public selector on its placeholder while the private controls are visible below it.
+- No merge, push, or Store submission is authorized by this task.

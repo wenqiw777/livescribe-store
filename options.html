@@ -16,6 +16,7 @@
   button { margin-top:20px; padding:9px 18px; background:#2f6bff; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:13px; }
   #status { margin-left:12px; color:#0a0; font-size:13px; }
   .note { background:#fff8e6; border:1px solid #f0e0b0; border-radius:8px; padding:12px; font-size:12.5px; margin-top:24px; color:#6b5a1e; }
+  #debugCompanionToggle { position:fixed; left:0; bottom:0; width:28px; height:28px; margin:0; padding:0; border:0; opacity:0; background:transparent; }
 </style>
 </head>
 <body>
@@ -27,7 +28,6 @@
     <option value="" selected>Choose how to use AI</option>
     <option value="anthropic">Use my Anthropic API key</option>
     <option value="openai">Use my OpenAI API key</option>
-    <option value="native">Use my ChatGPT / Claude subscription — Install Companion</option>
   </select>
 
   <div id="nativeBox" class="provider-box" style="display:none">
@@ -36,8 +36,7 @@
       <option value="claude">Claude Code — your Claude Pro/Max subscription</option>
       <option value="codex">Codex — your ChatGPT subscription</option>
     </select>
-    <div class="hint">Install the Mac Companion once. It connects LiveScribe to Codex or Claude on your computer. No extension ID or Terminal command is required.</div>
-    <a id="downloadCompanion" class="download" href="https://github.com/wenqiw777/livescribe-store/releases/download/v0.1.1/LiveScribe-Companion-0.1.1.pkg">Download Companion for Mac</a><br>
+    <div class="hint">Private debugging connection for a locally registered Native Messaging host.</div>
     <button id="testNative" class="secondary">Test Companion</button>
     <span id="testNativeStatus" style="font-size:12px;margin-left:8px"></span>
   </div>
@@ -59,7 +58,22 @@
     <input id="openaiKey" type="password" placeholder="sk-..." autocomplete="off">
     <div class="hint">Sent directly to api.openai.com. API billing is separate from a ChatGPT subscription. Use a restricted project key when possible.</div>
     <label for="openaiModel">Model</label>
-    <input id="openaiModel" type="text" value="gpt-5" autocomplete="off">
+    <select id="openaiModel">
+      <optgroup label="GPT-5.6">
+        <option value="gpt-5.6-luna" selected>GPT-5.6 Luna — fastest and lowest cost</option>
+        <option value="gpt-5.6-terra">GPT-5.6 Terra — balanced</option>
+        <option value="gpt-5.6-sol">GPT-5.6 Sol — highest quality</option>
+      </optgroup>
+      <optgroup label="Earlier models">
+        <option value="gpt-5.5">GPT-5.5</option>
+        <option value="gpt-5.4">GPT-5.4</option>
+        <option value="gpt-5.4-mini">GPT-5.4 mini</option>
+        <option value="gpt-5.4-nano">GPT-5.4 nano</option>
+        <option value="gpt-5">GPT-5</option>
+        <option value="gpt-5-mini">GPT-5 mini</option>
+        <option value="gpt-5-nano">GPT-5 nano</option>
+      </optgroup>
+    </select>
   </div>
 
   <div>
@@ -68,6 +82,8 @@
   </div>
 
   <div class="note">⚠️ <b>Consent reminder:</b> LiveScribe asks before every meeting. You are responsible for notifying participants and following the laws and policies that apply to your meeting.</div>
+
+  <button id="debugCompanionToggle" aria-hidden="true" tabindex="-1"></button>
 
   <script src="options.js"></script>
 </body>
