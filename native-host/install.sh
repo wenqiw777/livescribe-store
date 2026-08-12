@@ -109,5 +109,5 @@ if [ "$installed" -eq 0 ]; then
 fi
 
 echo ""
-echo "Done. Now in LiveScribe Settings choose 'Local Claude Code (native messaging)',"
-echo "click Test, then use End & Summarize. No terminal needed."
+echo "Done. Reload LiveScribe, open its Settings page, click the hidden bottom-left"
+echo "debug area, choose Codex or Claude Code, and click Test Companion."

@@ -5,3 +5,4 @@ env
 .env
 .env.*
 !.env.example
+native-host/run-host.sh
