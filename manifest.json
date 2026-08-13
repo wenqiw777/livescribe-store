@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LiveScribe \u2014 Meeting Transcript",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Capture meeting captions with consent, ask questions during calls, and create notes. No meeting bot joins.",
   "permissions": [
     "storage",

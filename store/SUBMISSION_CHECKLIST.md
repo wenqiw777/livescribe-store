@@ -10,7 +10,7 @@
 
 ## Dashboard
 
-- [ ] Upload `dist/livescribe-0.1.2.zip`.
+- [ ] Upload `dist/livescribe-0.1.3.zip`.
 - [ ] Paste the name, short description, detailed description, category, and single purpose from `LISTING.md`.
 - [ ] Upload `assets/01-consent.png` and `assets/02-live-transcript.png` in that order.
 - [ ] Complete the Privacy tab using the declarations and permission justifications in `LISTING.md`.

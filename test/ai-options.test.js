@@ -53,7 +53,7 @@ async function runBackend(backend) {
   const anthropic = await runBackend('anthropic');
   const openai = await runBackend('openai');
   const checks = [
-    ['version is 0.1.2', manifest.version === '0.1.2'],
+    ['version is 0.1.3', manifest.version === '0.1.3'],
     ['first option is an AI placeholder', /<option value=""[^>]*selected[^>]*>Choose how to use AI<\/option>/.test(options)],
     ['Anthropic choice is present', /Use my Anthropic API key/.test(options)],
     ['OpenAI choice is present', /Use my OpenAI API key/.test(options)],
