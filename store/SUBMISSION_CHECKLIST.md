@@ -6,11 +6,11 @@
 - [ ] Choose and verify the publisher name and support email.
 - [x] Confirm the privacy policy is live at `https://wenqiw777.github.io/livescribe-store/privacy.html`.
 - [x] Confirm the support page is live at `https://wenqiw777.github.io/livescribe-store/support.html`.
-- [ ] Publish the signed and notarized `LiveScribe-Companion-0.1.1.pkg` GitHub release before enabling its Settings download link publicly.
+- [ ] Publish the signed and notarized `LiveScribe-Companion-0.1.2.pkg` GitHub release before enabling its Settings download link publicly.
 
 ## Dashboard
 
-- [ ] Upload `dist/livescribe-0.1.1.zip`.
+- [ ] Upload `dist/livescribe-0.1.2.zip`.
 - [ ] Paste the name, short description, detailed description, category, and single purpose from `LISTING.md`.
 - [ ] Upload `assets/01-consent.png` and `assets/02-live-transcript.png` in that order.
 - [ ] Complete the Privacy tab using the declarations and permission justifications in `LISTING.md`.

@@ -96,7 +96,7 @@ async function updateBadge() {
   try {
     const n = (await pendingSessions()).length;
     await chrome.action.setBadgeText({ text: n ? String(n) : '' });
-    await chrome.action.setBadgeBackgroundColor({ color: '#6d5ae6' });
+    await chrome.action.setBadgeBackgroundColor({ color: '#2f6bff' });
     await chrome.action.setTitle({
       title: n ? `LiveScribe — ${n} transcript${n > 1 ? 's' : ''} not exported yet`
                 : 'LiveScribe transcripts',
