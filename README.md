@@ -1,100 +1,190 @@
-# LiveScribe
+<a id="readme-top"></a>
 
-LiveScribe captures captions from browser-based Zoom, Google Meet, and Microsoft Teams meetings after explicit per-meeting consent. It provides a live transcript, meeting Q&A, summaries, local session history, and text/Markdown export without adding a meeting bot or recording audio.
+<div align="center">
+  <a href="https://chromewebstore.google.com/detail/gfhncbgjiechicicabgkmlmcljamdelf">
+    <img src="store/assets/icon128.png" alt="LiveScribe logo" width="96" height="96">
+  </a>
 
-## What is this repository?
+  <h1>LiveScribe</h1>
 
-This is the open-source release repository for the [LiveScribe Chrome extension](https://chromewebstore.google.com/detail/gfhncbgjiechicicabgkmlmcljamdelf). It contains:
+  <p>
+    Live meeting transcripts and AI notes, directly inside your browser.
+    <br />
+    No meeting bot. No audio recording. You choose when transcription starts.
+  </p>
 
-- The Manifest V3 extension shipped through the Chrome Web Store.
-- Caption collectors and the in-meeting transcript panel for Zoom, Google Meet, and Microsoft Teams.
-- Direct Anthropic and OpenAI API integrations using a key supplied by the user.
-- A developer-only Native Messaging host that connects LiveScribe to an existing local Codex or Claude Code login.
-- Store packaging scripts, privacy disclosures, reviewer instructions, screenshots, and regression tests.
+  <p>
+    <a href="https://chromewebstore.google.com/detail/gfhncbgjiechicicabgkmlmcljamdelf"><strong>Install from the Chrome Web Store &rarr;</strong></a>
+    <br />
+    <br />
+    <a href="https://wenqiw777.github.io/livescribe-store/">Website</a>
+    &middot;
+    <a href="https://wenqiw777.github.io/livescribe-store/support.html">Support</a>
+    &middot;
+    <a href="https://github.com/wenqiw777/livescribe-store/issues">Report a bug</a>
+    &middot;
+    <a href="https://github.com/wenqiw777/livescribe-store/issues">Request a feature</a>
+  </p>
 
-The Chrome Web Store ZIP contains only the extension runtime. It deliberately excludes `native-host/`, Companion source, tests, Store documents, and local build tools. Clone this repository only if you want to inspect the source, contribute, build the extension, or enable the developer AI Companion.
+  [![Chrome Web Store][chrome-store-shield]][chrome-store-url]
+  [![Version][version-shield]][chrome-store-url]
+  [![MIT License][license-shield]][license-url]
+</div>
 
-## Local test
+<br />
 
-1. Open `chrome://extensions`.
-2. Enable Developer mode.
-3. Choose **Load unpacked** and select this repository.
-4. Join a supported meeting in the browser.
-5. Confirm LiveScribe asks before starting transcription.
+![LiveScribe showing a speaker-labelled transcript and in-meeting AI actions beside a browser meeting](store/assets/02-live-transcript.png)
 
-## AI options
+LiveScribe captures the captions that Zoom, Google Meet, and Microsoft Teams already produce. It turns them into a readable, speaker-labelled transcript and—if you connect your own Anthropic or OpenAI API key—lets you ask questions and create meeting summaries without sending a bot into the call.
 
-- **Anthropic API:** enter a personal API key in extension settings. Requests go directly to Anthropic over HTTPS.
-- **OpenAI API:** enter a personal API key in extension settings. Requests go directly to OpenAI over HTTPS.
+<details>
+  <summary><strong>Table of contents</strong></summary>
+  <ol>
+    <li><a href="#why-livescribe">Why LiveScribe</a></li>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#getting-started">Getting started</a></li>
+    <li><a href="#how-it-works">How it works</a></li>
+    <li><a href="#privacy-and-consent">Privacy and consent</a></li>
+    <li><a href="#development">Development</a></li>
+    <li><a href="#developer-ai-companion">Developer AI Companion</a></li>
+    <li><a href="#contributing">Contributing</a></li>
+    <li><a href="#license">License</a></li>
+  </ol>
+</details>
 
-AI is off on a new install. Transcription and export work without AI; Ask and Summarize remain disabled until one option is ready.
+## Why LiveScribe
 
-The public settings UI exposes only the two direct API options. The developer AI Companion is an unsupported local debugging path and is not required for transcription.
+Meeting transcription tools often join as another participant, capture audio, or require a separate desktop app. LiveScribe stays in the browser and works with the live captions already provided by the meeting platform.
 
-The localhost HTTP bridge is intentionally absent from this Store repository and Store ZIP.
+- **You stay in control.** LiveScribe asks before every meeting and provides an End button while transcription is active.
+- **No bot joins.** Nothing new appears in the participant list.
+- **No audio is recorded.** LiveScribe reads text captions instead of microphone or meeting audio.
+- **AI is optional.** Transcription works without an API key; Ask and Summarize turn on only after you configure a provider.
+- **Your choice of provider.** Use your own Anthropic or OpenAI API key and select from the supported models in Settings.
 
-## How to activate the developer AI Companion on macOS
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-The Companion lets LiveScribe use a Codex or Claude Code CLI that is already installed and logged in on your Mac. It does not copy a ChatGPT or Claude credential into the extension. Chrome starts the registered local host only when LiveScribe sends it a request.
+## Features
 
-### Prerequisites
+| Capability | What it does |
+| --- | --- |
+| Live transcript | Captures browser captions with speaker names as the meeting happens. |
+| Meeting controls | Pause, resume, copy, and end transcription from the in-meeting panel. |
+| Meeting Q&A | Ask for key points, action items, follow-up questions, or a custom answer. |
+| AI summaries | Create a summary after a meeting with your selected provider and model. |
+| Session separation | Ending one meeting finalizes that session; the next meeting starts a new transcript. |
+| Local history | Keeps recent sessions in Chrome storage on your device. |
+| Export | Saves transcripts and notes as text or Markdown. |
+| Browser meetings | Supports Zoom Web Client, Google Meet, and Microsoft Teams on the web. |
 
-- macOS with Google Chrome, Chrome Beta/Canary, Chromium, Microsoft Edge, Brave, or Arc installed and opened at least once.
-- Node.js available as `node` in your shell.
-- At least one of these installed and logged in:
-  - Codex CLI as `codex` for a ChatGPT subscription.
-  - Claude Code as `claude` for a Claude Pro/Max subscription.
-- This repository cloned locally. The Web Store download does not include the installer.
+### Consent before transcription
 
-### 1. Register the local host
+LiveScribe never starts silently. Each meeting begins with a clear choice, and transcription starts only after the user approves it for that meeting.
 
-For the published Chrome Web Store extension, run:
+![LiveScribe asking for consent before transcribing a browser meeting](store/assets/01-consent.png)
 
-```sh
-git clone https://github.com/wenqiw777/livescribe-store.git
-cd livescribe-store
-./native-host/install.sh gfhncbgjiechicicabgkmlmcljamdelf
+> LiveScribe does not replace the meeting platform's own disclosure controls. You are responsible for notifying participants and following the laws and policies that apply to your meeting.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Getting started
+
+### 1. Install LiveScribe
+
+[Install LiveScribe from the Chrome Web Store][chrome-store-url], then pin it from Chrome's Extensions menu for easy access.
+
+### 2. Open a supported meeting in the browser
+
+LiveScribe works with:
+
+- Zoom Web Client at `https://app.zoom.us/wc/...` and other `*.zoom.us` web meeting pages
+- Google Meet at `https://meet.google.com/...`
+- Microsoft Teams web meetings
+
+Desktop meeting applications are not supported. The meeting platform's live captions or transcription must be available.
+
+### 3. Choose whether to transcribe
+
+Join the meeting and respond to LiveScribe's consent prompt. Choose **Yes, this time** to begin or **No** to leave transcription off.
+
+### 4. Optional: connect AI
+
+Open the extension popup, choose **Settings**, and select one provider:
+
+- **Use my Anthropic API key**
+- **Use my OpenAI API key**
+
+Enter your key, select a model, and click **Save**. The key is stored in Chrome extension storage and requests go directly from the extension to the selected provider over HTTPS.
+
+No AI provider is selected on a new install. Without one, live transcription and local session features continue to work while Ask and Summarize remain disabled.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## How it works
+
+```text
+Meeting platform captions
+          │
+          ▼
+ LiveScribe extension ──────► Live transcript and local session history
+          │
+          └── only when you use Ask or Summarize
+                            │
+                            ▼
+               Your selected AI provider
 ```
 
-If you loaded the extension from source instead, open `chrome://extensions`, copy the 32-character ID shown on the LiveScribe card, and use that ID in the final command:
+The public Chrome Web Store package contains only the extension runtime. It does not include the developer Native Messaging host, tests, Store documents, or local packaging tools found in this repository.
 
-```sh
-./native-host/install.sh <YOUR_EXTENSION_ID>
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Privacy and consent
+
+- LiveScribe does not record meeting audio.
+- Transcript data and settings are stored locally in Chrome extension storage.
+- Caption text is sent to Anthropic or OpenAI only when you explicitly use an AI feature with that provider configured.
+- LiveScribe does not sell personal data.
+- Consent is requested separately for every meeting.
+
+Read the full [Privacy Policy](https://wenqiw777.github.io/livescribe-store/privacy.html) and [Chrome Web Store disclosures](store/PRIVACY.md).
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Development
+
+### Load the extension locally
+
+1. Clone the repository:
+
+   ```sh
+   git clone https://github.com/wenqiw777/livescribe-store.git
+   cd livescribe-store
+   ```
+
+2. Open `chrome://extensions`.
+3. Enable **Developer mode**.
+4. Choose **Load unpacked** and select this repository.
+5. Join a supported browser meeting and confirm that LiveScribe asks before transcription starts.
+
+### Repository layout
+
+```text
+livescribe-store/
+├── manifest.json          Chrome Manifest V3 configuration
+├── background.js          Session storage and AI provider requests
+├── popup.*                Extension popup
+├── options.*              Provider, API key, and model settings
+├── src/                   Meeting capture and in-meeting panel
+├── native-host/           Developer-only Native Messaging host
+├── scripts/               Store and Companion packaging
+├── store/                 Listing, privacy, review, and screenshot assets
+├── test/                  Regression and Store-readiness tests
+└── docs/                  GitHub Pages privacy and support site
 ```
 
-The installer resolves the current `node`, `codex`, and `claude` locations, writes `native-host/run-host.sh`, and registers `com.livescribe.summarizer` in every supported Chromium browser found on the Mac.
+### Verify
 
-### 2. Reveal the private Companion controls
-
-1. Reload LiveScribe from `chrome://extensions`, or restart Chrome.
-2. Open **LiveScribe settings** from the extension popup.
-3. Click the invisible 28 × 28 pixel area at the absolute bottom-left corner of the settings page.
-4. The **Model provider (subscription)** panel appears. `AI Companion` does not appear in the public **Use AI with** dropdown.
-5. Select **Codex** or **Claude Code**.
-6. Click **Test Companion**. A successful setup shows `Connected ✓`.
-
-Clicking the hidden area immediately saves the Native Messaging backend. Ask uses `gpt-5.6-luna` and Summarize uses `gpt-5.6-terra` when Codex is selected.
-
-### 3. Return to an API backend
-
-Choose **Use my Anthropic API key** or **Use my OpenAI API key** in **Use AI with**, enter the key, choose a model, and click **Save**. Selecting a public option disables the private Companion backend.
-
-### Troubleshooting
-
-- `Companion not found` or `not authorized`: rerun `install.sh` with the exact extension ID, then reload the extension.
-- `node not found`: install Node.js and confirm `command -v node` prints a path.
-- `neither claude nor codex found`: install and log in to at least one supported CLI, then rerun the installer.
-- One provider is unavailable: the installer reports which CLI was not found. Choose the provider that was installed.
-- No browser profile found: open the browser once, close the error, and rerun the installer.
-- A CLI works in Terminal but not LiveScribe: rerun the installer so `run-host.sh` captures its current absolute path and login environment.
-
-Security note: anyone can inspect open-source extension code and discover this control. It is hidden to keep the public setup simple, not to provide access control. The Native Messaging manifest still restricts the local host to the extension ID passed to `install.sh`.
-
-## License
-
-LiveScribe is open source under the [MIT License](LICENSE).
-
-## Verify
+Run the Store readiness checks:
 
 ```sh
 node test/store-readiness.test.js
@@ -111,21 +201,94 @@ for test_file in test/*.test.js; do
 done
 ```
 
-## Build the Store ZIP
+### Build the Chrome Web Store package
 
 ```sh
 ./scripts/package-store.sh
 ```
 
-The resulting archive is written to `dist/`. `manifest.json` is at the archive root. Tests, Store documentation, screenshots, the localhost bridge, and Companion/native-host source are excluded.
+The archive is written to `dist/` with `manifest.json` at its root. Developer tools, tests, Store documents, screenshots, and Companion source are excluded.
 
-Build the separate macOS Companion with `./scripts/package-companion-macos.sh`. Set `INSTALLER_IDENTITY` and `NOTARY_PROFILE` to produce and notarize the public package; without them, the script clearly labels the output unsigned for local testing only.
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Submission material
+## Developer AI Companion
 
-- `store/PRIVACY.md` — host this at a public HTTPS URL before submission.
-- `store/LISTING.md` — listing copy, permission justifications, and privacy declarations.
-- `store/REVIEWER_INSTRUCTIONS.md` — paste into the dashboard's test-instructions field.
-- `store/assets/` — Store screenshots.
+The Companion is an unsupported local debugging path for developers who already have Codex CLI or Claude Code installed and signed in. It is deliberately hidden from the public **Use AI with** menu and is not required for transcription or API-key-based AI.
 
-Start with **Private / trusted testers**, complete a real meeting pass, and then change distribution to Public after approval.
+<details>
+  <summary><strong>Show macOS setup and troubleshooting</strong></summary>
+
+### Prerequisites
+
+- macOS and a supported Chromium browser that has been opened at least once
+- Node.js available as `node`
+- Codex CLI as `codex`, Claude Code as `claude`, or both, already installed and signed in
+- This repository cloned locally—the Chrome Web Store download does not contain the installer
+
+### Register the local host
+
+For the published Chrome Web Store extension:
+
+```sh
+git clone https://github.com/wenqiw777/livescribe-store.git
+cd livescribe-store
+./native-host/install.sh gfhncbgjiechicicabgkmlmcljamdelf
+```
+
+For a locally loaded extension, copy its 32-character ID from `chrome://extensions` and run:
+
+```sh
+./native-host/install.sh <YOUR_EXTENSION_ID>
+```
+
+The installer resolves the current `node`, `codex`, and `claude` paths, writes `native-host/run-host.sh`, and registers `com.livescribe.summarizer` for supported Chromium browsers found on the Mac.
+
+### Reveal the private controls
+
+1. Reload LiveScribe from `chrome://extensions` or restart Chrome.
+2. Open **LiveScribe settings**.
+3. Click the invisible 28 × 28 pixel area at the absolute bottom-left corner.
+4. Select **Codex** or **Claude Code** in the revealed panel.
+5. Click **Test Companion** and require `Connected ✓` before using it.
+
+Selecting Anthropic or OpenAI again from the public **Use AI with** menu disables the Companion backend.
+
+### Troubleshooting
+
+- **Companion not found** or **not authorized:** rerun `install.sh` with the exact extension ID, then reload LiveScribe.
+- **node not found:** install Node.js and confirm `command -v node` prints a path.
+- **Neither claude nor codex found:** install and sign in to at least one supported CLI, then rerun the installer.
+- **CLI works in Terminal but not LiveScribe:** rerun the installer so `run-host.sh` captures the current executable paths and login environment.
+
+The hidden control simplifies the public UI; it is not an access-control mechanism. Native Messaging still restricts the local host to the extension ID passed to `install.sh`.
+
+</details>
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Contributing
+
+Issues and pull requests are welcome.
+
+1. Fork the repository.
+2. Create a focused branch.
+3. Add or update regression coverage for behavior changes.
+4. Run the verification commands above.
+5. Open a pull request describing the user-visible result and how it was tested.
+
+See the [open issues](https://github.com/wenqiw777/livescribe-store/issues) for known problems and proposed improvements.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## License
+
+LiveScribe is open source under the [MIT License](LICENSE).
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- Reference-style links keep the main README easier to scan. -->
+[chrome-store-shield]: https://img.shields.io/badge/Chrome_Web_Store-Install-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white
+[chrome-store-url]: https://chromewebstore.google.com/detail/gfhncbgjiechicicabgkmlmcljamdelf
+[version-shield]: https://img.shields.io/badge/version-0.1.1-6C5CE7?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/wenqiw777/livescribe-store.svg?style=for-the-badge
+[license-url]: https://github.com/wenqiw777/livescribe-store/blob/main/LICENSE
