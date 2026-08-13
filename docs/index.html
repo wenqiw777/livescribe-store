@@ -1,54 +1,154 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="LiveScribe captures meeting captions with consent and turns them into useful personal notes.">
-  <title>LiveScribe — Meeting notes, with consent</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><circle cx=%2216%22 cy=%2216%22 r=%2210%22 fill=%22%23eb575f%22/></svg>">
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="LiveScribe captures browser meeting captions with consent and turns them into useful notes." />
+  <title>LiveScribe — Stay present. Keep every word.</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%229%22 fill=%22%232f6bff%22/><path d=%22M9 16h2m2-6v12m3-16v20m3-16v12m2-6h2%22 stroke=%22white%22 stroke-width=%222%22 stroke-linecap=%22round%22/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="landing.css" />
 </head>
 <body>
-  <header class="site-shell site-header">
-    <a class="brand" href="index.html"><span class="record-dot"></span>LiveScribe</a>
-    <nav class="site-nav" aria-label="Primary navigation">
-      <a href="privacy.html">Privacy</a>
-      <a href="support.html">Support</a>
-    </nav>
-  </header>
-
-  <main>
-    <section class="site-shell hero">
-      <div class="hero-copy">
-        <div class="eyebrow">Browser meeting notes</div>
-        <h1>What was said, kept in your hands.</h1>
-        <p>LiveScribe turns captions from browser-based meetings into a transcript you can review, question, summarize, and export. It asks before every meeting. No bot joins. No audio is recorded.</p>
-        <div class="actions">
-          <a class="button primary" href="privacy.html">Read how data is handled</a>
-          <a class="button" href="support.html">Get support</a>
-        </div>
+  <div class="page">
+    <header class="shell nav">
+      <a class="brand" href="#top" aria-label="LiveScribe home">
+        <span class="brand-mark" aria-hidden="true"><span><i></i><i></i><i></i><i></i><i></i></span></span>
+        LiveScribe
+      </a>
+      <nav class="nav-center" aria-label="Main navigation">
+        <a href="#product">Product</a>
+        <a href="#privacy">Privacy</a>
+        <a href="https://github.com/wenqiw777/livescribe-store">Open source</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="text-link" href="support.html">Support</a>
+        <a class="pill" href="https://chromewebstore.google.com/detail/gfhncbgjiechicicabgkmlmcljamdelf">Add to Chrome</a>
       </div>
+    </header>
 
-      <div class="caption-window" aria-label="Example LiveScribe transcript panel">
-        <div class="caption-head"><span class="record-dot"></span>LiveScribe <span class="caption-time">08:50</span></div>
-        <div class="caption-lines">
-          <div class="caption-line"><div class="speaker">Alex Johnson</div><div class="said">We will launch the onboarding flow on Friday.</div></div>
-          <div class="caption-line"><div class="speaker">Sarah Miller</div><div class="said">I will finish the API review tomorrow.</div></div>
-          <div class="caption-line"><div class="speaker">Chris Lee</div><div class="said">I can own QA and send the final checklist.</div></div>
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <div>
+            <div class="eyebrow">Your meeting, still yours</div>
+            <h1>Stay present.<br /><em>Keep every word.</em></h1>
+          </div>
+          <div class="hero-side">
+            <p>Live transcripts and useful AI notes, right beside your meeting. No bot joins. No audio is recorded.</p>
+            <div class="hero-buttons">
+              <a class="primary" href="https://chromewebstore.google.com/detail/gfhncbgjiechicicabgkmlmcljamdelf">
+                Add to Chrome
+                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </a>
+              <a class="secondary" href="#product">See how it works</a>
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
 
-    <section class="privacy-strip" aria-label="Privacy summary">
-      <div class="privacy-fact"><strong>Consent first</strong><span>You choose whether transcription starts in every meeting.</span></div>
-      <div class="privacy-fact"><strong>Stored locally</strong><span>Transcripts and notes stay in Chrome extension storage on your device.</span></div>
-      <div class="privacy-fact"><strong>AI only on request</strong><span>Content is sent for AI processing only when you ask or summarize.</span></div>
-    </section>
-  </main>
+        <div class="caption-rail" aria-label="Example live captions">
+          <div class="caption-track">
+            <div class="caption"><span class="avatar v">AJ</span><span><strong>Alex</strong> We’ll launch the onboarding flow on Friday.</span></div>
+            <div class="caption"><span class="avatar m">SM</span><span><strong>Sarah</strong> I’ll finish the API review tomorrow.</span></div>
+            <div class="caption"><span class="avatar c">CL</span><span><strong>Chris</strong> I can own QA and send the checklist.</span></div>
+            <div class="caption"><span class="avatar v">AJ</span><span><strong>Alex</strong> Let’s make that the decision.</span></div>
+            <div class="caption"><span class="avatar m">SM</span><span><strong>Sarah</strong> I’ll add it to the notes.</span></div>
+            <div class="caption"><span class="avatar v">AJ</span><span><strong>Alex</strong> We’ll launch the onboarding flow on Friday.</span></div>
+            <div class="caption"><span class="avatar m">SM</span><span><strong>Sarah</strong> I’ll finish the API review tomorrow.</span></div>
+            <div class="caption"><span class="avatar c">CL</span><span><strong>Chris</strong> I can own QA and send the checklist.</span></div>
+            <div class="caption"><span class="avatar v">AJ</span><span><strong>Alex</strong> Let’s make that the decision.</span></div>
+            <div class="caption"><span class="avatar m">SM</span><span><strong>Sarah</strong> I’ll add it to the notes.</span></div>
+          </div>
+        </div>
 
-  <footer class="site-shell site-footer">
-    <span>© 2026 LiveScribe Team</span>
-    <span>No analytics · No advertising · No tracking cookies</span>
-  </footer>
+        <div class="stage-wrap">
+          <div class="stage">
+            <div class="stage-top">
+              <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="stage-label">Browser meeting</span>
+              <span class="stage-status">Transcribing</span>
+            </div>
+            <div class="meeting-canvas">
+              <div class="person one" data-name="Alex"><span class="person-avatar">AJ</span></div>
+              <div class="person two" data-name="Sarah"><span class="person-avatar">SM</span></div>
+              <div class="transcript-window">
+                <div class="panel-head">
+                  <div class="panel-title"><span class="record-dot"></span> LiveScribe</div>
+                  <span class="time">08:50</span>
+                </div>
+                <div class="lines">
+                  <div class="line"><div class="speaker">Alex Johnson <span>08:45</span></div><p>We’ll launch the onboarding flow on Friday.</p></div>
+                  <div class="line"><div class="speaker">Sarah Miller <span>08:46</span></div><p>I’ll finish the API review tomorrow and share the result.</p></div>
+                  <div class="line"><div class="speaker">Chris Lee <span>08:48</span></div><p>I can own QA and send the final checklist.</p></div>
+                </div>
+                <div class="ask-row"><span>Ask about this meeting…</span><button>Ask</button></div>
+              </div>
+            </div>
+          </div>
+          <div class="floating-note">
+            <div class="note-label">Action item found</div>
+            <p><strong>Chris</strong> owns QA and will send the final checklist.</p>
+          </div>
+          <div class="privacy-chip">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M5.5 8.5V6a4.5 4.5 0 0 1 9 0v2.5M4 8.5h12v8H4v-8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            Captions stay on your device
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="product">
+        <div class="section-heading">
+          <div class="section-kicker">Built for the call you’re already in</div>
+          <h2>The useful parts of meeting AI, without another participant.</h2>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16M4 12h10M4 19h13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+            <h3>Live transcript</h3>
+            <p>Follow speaker-labelled captions in a clean panel without leaving your meeting.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3a8 8 0 1 0 4.8 14.4L21 21l-1.4-4.2A8 8 0 0 0 12 3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></div>
+            <h3>Ask in context</h3>
+            <p>Pull out decisions, action items, and follow-up questions while the conversation is fresh.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+            <h3>Your AI provider</h3>
+            <p>Connect your own OpenAI or Anthropic API key and choose the model that fits the job.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="consent" id="privacy">
+        <div class="consent-copy">
+          <div class="section-kicker" style="color:#82a7ff;margin-bottom:18px">Consent by design</div>
+          <h2>Nothing starts until <em>you say yes.</em></h2>
+          <p>LiveScribe asks before every meeting. You can pause or end transcription at any time, and it never records meeting audio.</p>
+          <div class="consent-list">
+            <span><i>✓</i> Per-meeting approval</span>
+            <span><i>✓</i> No meeting bot</span>
+            <span><i>✓</i> No audio recording</span>
+          </div>
+        </div>
+        <div class="consent-image">
+          <img src="https://raw.githubusercontent.com/wenqiw777/livescribe-store/main/store/assets/01-consent.png" alt="LiveScribe asks whether to transcribe this meeting" />
+        </div>
+      </section>
+
+      <section class="final-cta">
+        <h2>Leave the meeting with the conversation—not a page of scraps.</h2>
+        <p>Free to install. AI features use your own provider key.</p>
+        <a class="primary" href="https://chromewebstore.google.com/detail/gfhncbgjiechicicabgkmlmcljamdelf">Add LiveScribe to Chrome</a>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>© 2026 LiveScribe. Open source under MIT.</span>
+      <div class="footer-links"><a href="https://github.com/wenqiw777/livescribe-store">GitHub</a><a href="privacy.html">Privacy</a><a href="support.html">Support</a></div>
+    </footer>
+  </div>
 </body>
 </html>

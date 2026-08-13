@@ -4,8 +4,9 @@
   --line: #dedee6;
   --paper: #fbfbfd;
   --panel: #ffffff;
-  --violet: #6d5ae6;
-  --violet-soft: #eeeafd;
+  --brand: #2f6bff;
+  --brand-dark: #1552e8;
+  --brand-soft: #dce7ff;
   --record: #eb575f;
   --shadow: 0 22px 70px rgba(26, 22, 58, 0.12);
 }
@@ -18,8 +19,8 @@ body {
   margin: 0;
   color: var(--ink);
   background:
-    linear-gradient(rgba(109, 90, 230, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(109, 90, 230, 0.045) 1px, transparent 1px),
+    linear-gradient(rgba(47, 107, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(47, 107, 255, 0.045) 1px, transparent 1px),
     var(--paper);
   background-size: 32px 32px;
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -72,7 +73,7 @@ a { color: inherit; }
 .site-nav a:hover,
 .site-nav a:focus-visible {
   color: var(--ink);
-  background: var(--violet-soft);
+  background: var(--brand-soft);
   outline: none;
 }
 
@@ -86,7 +87,7 @@ a { color: inherit; }
 
 .eyebrow,
 .utility-label {
-  color: var(--violet);
+  color: var(--brand);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   font-weight: 700;
@@ -136,12 +137,12 @@ h1 {
 
 .button.primary {
   color: #fff;
-  background: var(--violet);
-  border-color: var(--violet);
+  background: var(--brand);
+  border-color: var(--brand);
 }
 
 .button:hover { transform: translateY(-1px); }
-.button:focus-visible { outline: 3px solid rgba(109, 90, 230, 0.25); outline-offset: 2px; }
+.button:focus-visible { outline: 3px solid rgba(47, 107, 255, 0.25); outline-offset: 2px; }
 
 .caption-window {
   overflow: hidden;
@@ -179,7 +180,7 @@ h1 {
 
 .caption-line:last-child { border-bottom: 0; }
 
-.speaker { color: var(--violet); font-size: 13px; font-weight: 750; }
+.speaker { color: var(--brand); font-size: 13px; font-weight: 750; }
 .said { margin-top: 4px; font-size: 15px; }
 
 .privacy-strip {
@@ -218,7 +219,7 @@ h1 {
 
 .policy-index { position: sticky; top: 30px; align-self: start; }
 .policy-index a { display: block; padding: 7px 0; color: var(--muted); font-size: 13px; text-decoration: none; }
-.policy-index a:hover { color: var(--violet); }
+.policy-index a:hover { color: var(--brand); }
 
 .policy-copy section { scroll-margin-top: 30px; }
 .policy-copy section + section { margin-top: 52px; }
@@ -229,8 +230,8 @@ h1 {
 
 .callout {
   padding: 20px 22px;
-  border-left: 4px solid var(--violet);
-  background: var(--violet-soft);
+  border-left: 4px solid var(--brand);
+  background: var(--brand-soft);
   border-radius: 0 12px 12px 0;
 }
 

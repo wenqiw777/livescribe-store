@@ -10,6 +10,8 @@ const runtimeFiles = [
   'options.html',
   'src/panel.css',
   'background.js',
+  'docs/styles.css',
+  'docs/landing.css',
 ];
 
 const runtime = Object.fromEntries(runtimeFiles.map(file => [
@@ -36,5 +38,7 @@ assert(runtime['options.html'].includes('#2f6bff'), 'settings primary actions us
 assert(runtime['src/panel.css'].includes('--ls-primary: #2f6bff'), 'meeting panel primary token uses the icon blue');
 assert(runtime['src/panel.css'].includes('--ls-primary-hover: #1552e8'), 'meeting panel hover token uses the darker brand blue');
 assert(runtime['background.js'].includes("color: '#2f6bff'"), 'extension badge uses the icon blue');
+assert(runtime['docs/styles.css'].includes('--brand: #2f6bff'), 'website primary token uses the icon blue');
+assert(runtime['docs/landing.css'].includes('--brand: #2f6bff'), 'landing page primary token uses the icon blue');
 
 console.log('brand theme uses LiveScribe icon blue across extension surfaces');
