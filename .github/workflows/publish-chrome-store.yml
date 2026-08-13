@@ -1,0 +1,50 @@
+name: Publish Chrome Web Store
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_type:
+        description: Publish immediately after approval or stage for manual release
+        required: true
+        default: DEFAULT_PUBLISH
+        type: choice
+        options:
+          - DEFAULT_PUBLISH
+          - STAGED_PUBLISH
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      CWS_PUBLISHER_ID: 170a15cf-13da-446f-bb67-3cb7b05cc01d
+      CWS_ITEM_ID: gfhncbgjiechicicabgkmlmcljamdelf
+      CWS_PUBLISH_TYPE: ${{ inputs.publish_type }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build Store package
+        id: package
+        run: |
+          archive=$(./scripts/package-store.sh)
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+
+      - name: Upload and submit for review
+        env:
+          CWS_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: ./scripts/publish-chrome-store.sh "${{ steps.package.outputs.archive }}"
