@@ -54,4 +54,3 @@ publish_response=$(request -X POST \
   -d "{\"publishType\":\"$publish_type\",\"skipReview\":false,\"blockOnWarnings\":true}" \
   "$api_root/v2/$item_name:publish")
 printf '%s\n' "$publish_response"
-
