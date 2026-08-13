@@ -33,7 +33,7 @@ upload_state=$(printf '%s' "$upload_response" | node -e '
 ')
 
 attempt=0
-while [ "$upload_state" = "UPLOAD_IN_PROGRESS" ] && [ "$attempt" -lt 30 ]; do
+while { [ "$upload_state" = "IN_PROGRESS" ] || [ "$upload_state" = "UPLOAD_IN_PROGRESS" ]; } && [ "$attempt" -lt 30 ]; do
   attempt=$((attempt + 1))
   sleep 5
   status_response=$(request "$api_root/v2/$item_name:fetchStatus")
@@ -44,10 +44,13 @@ while [ "$upload_state" = "UPLOAD_IN_PROGRESS" ] && [ "$attempt" -lt 30 ]; do
   ')
 done
 
-if [ "$upload_state" != "UPLOAD_SUCCESS" ]; then
-  echo "Chrome Web Store upload did not succeed: $upload_state" >&2
-  exit 1
-fi
+case "$upload_state" in
+  SUCCEEDED|UPLOAD_SUCCESS) ;;
+  *)
+    echo "Chrome Web Store upload did not succeed: $upload_state" >&2
+    exit 1
+    ;;
+esac
 
 publish_response=$(request -X POST \
   -H "Content-Type: application/json" \
