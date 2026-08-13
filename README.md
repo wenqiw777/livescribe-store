@@ -289,6 +289,6 @@ LiveScribe is open source under the [MIT License](LICENSE).
 <!-- Reference-style links keep the main README easier to scan. -->
 [chrome-store-shield]: https://img.shields.io/badge/Chrome_Web_Store-Install-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white
 [chrome-store-url]: https://chromewebstore.google.com/detail/gfhncbgjiechicicabgkmlmcljamdelf
-[version-shield]: https://img.shields.io/badge/version-0.1.2-2F6BFF?style=for-the-badge
+[version-shield]: https://img.shields.io/badge/version-0.1.3-2F6BFF?style=for-the-badge
 [license-shield]: https://img.shields.io/github/license/wenqiw777/livescribe-store.svg?style=for-the-badge
 [license-url]: https://github.com/wenqiw777/livescribe-store/blob/main/LICENSE
