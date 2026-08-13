@@ -1,4 +1,4 @@
-/* LiveScribe panel — Tactiq-style surface: light card by default, violet accent,
+/* LiveScribe panel — Tactiq-style surface: light card by default, brand-blue accent,
    10px radii, muted secondary text. All rules are namespaced under #ls-panel so
    nothing leaks into the meeting page. */
 
@@ -9,8 +9,8 @@
   --ls-muted: #71717a;
   --ls-muted-bg: #f4f4f5;
   --ls-border: rgba(0, 0, 0, .09);
-  --ls-primary: #6d5ae6;
-  --ls-primary-hover: #5f4ddb;
+  --ls-primary: #2f6bff;
+  --ls-primary-hover: #1552e8;
   --ls-primary-fg: #ffffff;
   --ls-live: #e5484d;
   --ls-radius: 10px;
@@ -244,7 +244,7 @@
   font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 12.5px; font-variant-numeric: tabular-nums;
 }
-.ls-pill:hover { border-color: #6d5ae6; }
+.ls-pill:hover { border-color: var(--ls-primary); }
 .ls-pill .ls-dot {
   width: 8px; height: 8px; border-radius: 50%; background: #e5484d; flex: none;
   animation: ls-pulse 1.6s ease-in-out infinite;
