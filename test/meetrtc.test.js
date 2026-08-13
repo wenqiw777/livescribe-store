@@ -17,6 +17,8 @@ const dom = new JSDOM('<!doctype html><body></body>', {
 });
 const { window } = dom;
 window.TextDecoder = require('util').TextDecoder;
+window.TextEncoder = require('util').TextEncoder;
+window.__LS_MEET_CONFIG__ = { batchMs: 20, openDelayMs: 10, healthMs: 1000 };
 
 // --- fake WebRTC ----------------------------------------------------------
 const channels = [];
@@ -97,16 +99,17 @@ setTimeout(() => {
     console.log('---');
 
     const texts = got.map(g => g.text);
-    const decoded = texts.includes('we should cut the dashboard from v1');
+    const decoded = texts.includes('we should cut the dashboard from v1 and keep scope tight');
     const named = got.some(g => g.speaker === 'Alex Johnson') && got.some(g => g.speaker === 'Sarah Miller');
     const remoteOk = texts.includes('agreed, ship on Friday');
-    const sameId = got.filter(g => g.id === '41/spaces/AbC/devices/9f3k2mQ').length === 2;
+  const sameId = got.filter(g => g.id === '41/spaces/AbC/devices/9f3k2mQ').length === 1 &&
+    texts.includes('we should cut the dashboard from v1 and keep scope tight');
     const ignored = !texts.some(t => /bitrate|ssrc/.test(t));
 
     console.log('decoded with real schema   :', decoded ? 'PASS' : 'FAIL');
     console.log('speaker names from roster  :', named ? 'PASS' : 'FAIL');
     console.log('remote captions channel    :', remoteOk ? 'PASS' : 'FAIL');
-    console.log('revision keeps same id     :', sameId ? 'PASS' : 'FAIL');
+    console.log('revision keeps latest id   :', sameId ? 'PASS' : 'FAIL');
     console.log('other channels ignored     :', ignored ? 'PASS' : 'FAIL');
 
     const ok = selfOpened && decoded && named && remoteOk && sameId && ignored;
