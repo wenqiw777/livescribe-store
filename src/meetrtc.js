@@ -1,206 +1,361 @@
-// meetrtc.js — MAIN-world WebRTC tap for Google Meet.
+// meetrtc.js — resilient MAIN-world Google Meet WebRTC caption capture.
 //
-// Meet does not keep captions in a Redux store the way Zoom does; it streams
-// them over a WebRTC DATA CHANNEL labelled "captions". Two consequences:
-//   * reading them needs no DOM at all, so class-name churn and caption-box
-//     dragging are irrelevant;
-//   * the channel can be OPENED BY US. Meet's media server will serve captions
-//     to a channel we create, so the on-screen CC toggle is not a prerequisite.
-//
-// MUST run in the MAIN world at document_start: an isolated content script
-// cannot patch the page's RTCPeerConnection, and Meet builds its peer connection
-// as soon as you join.
-//
-// PAYLOAD: protobuf. The field numbers are reverse-engineered and decoded
-// exactly (see the schema note below) rather than inferred by shape — guessing
-// produced no speaker names at all and confused long participant keys with
-// speech. Speaker names come from the separate "collections" channel, which
-// carries the deviceId -> displayName roster.
+// Google Meet sends captions through protobuf messages on RTC data channels.
+// This module observes those channels before Meet creates its peer connection,
+// subscribes to captions, resolves speaker device IDs, and recovers from channel
+// replacement or silence without recording meeting audio.
 
 (function () {
   if (window.__LS_MEET_RTC__) return;
   window.__LS_MEET_RTC__ = true;
 
   const EVENT = 'livescribe-meet';
-  const LABEL = 'captions';            // caption text arrives here
-  const MEDIA_LABEL = 'media-session';  // session config is sent here
-  const COLLECTIONS_LABEL = 'collections'; // participant records + speech
-  const MAX_SAMPLES = 40;
-  const samples = [];
-  let emitted = 0;
+  const LABEL_CAPTIONS = 'captions';
+  const LABEL_MEDIA = 'media-session';
+  const LABEL_COLLECTIONS = 'collections';
+  const SYNC_COLLECTIONS = 'MeetingSpaceService/SyncMeetingSpaceCollections';
+  const config = Object.assign({
+    batchMs: 500,
+    openDelayMs: 1500,
+    healthMs: 10000,
+    silenceMs: 60000,
+    maxRecoveries: 3,
+    parseGapPackets: 50,
+    subscribeAckMs: 5000,
+    disconnectGraceMs: 5000,
+  }, window.__LS_MEET_CONFIG__ || {});
 
-  const state = { pc: null, cc: null, ms: null, lang: null, ended: false };
+  function preferredLanguage() {
+    return document.documentElement.lang || navigator.language || 'en-US';
+  }
+
+  const state = {
+    pc: null,
+    cc: null,
+    ms: null,
+    lang: preferredLanguage(),
+    ended: false,
+    emitted: 0,
+    rawPackets: 0,
+    parsedPackets: 0,
+    parseMisses: 0,
+    recoveries: 0,
+    lastCaptionPacketAt: 0,
+    lastCaptionParsedAt: 0,
+    lastAudioEnergy: null,
+    lastMediaResponseAt: 0,
+  };
   window.__ls_meet = state;
 
-  // ---- exact wire schema ---------------------------------------------------
-  // Reverse-engineered field numbers, so captions are decoded rather than
-  // guessed. Guessing cost us the speaker name entirely and mistook long
-  // participant keys for speech.
-  //
-  //   captions channel:
-  //     BTranscriptMessageWrapper { message = 1 -> BTranscriptMessage {
-  //       deviceId = 1 (string), messageId = 2 (int64),
-  //       messageVersion = 3 (int64), text = 6 (string), langId = 8 (int64) } }
-  //
-  //   collections channel (the participant roster):
-  //     BMeetingCollection { 2 -> { 2 -> repeated 2 -> Device } }
-  //     BDevice            { 1 -> 2 -> 13 -> 1 -> 2 -> Device }
-  //     Device             { deviceId = 1 (string), deviceName = 2 (string) }
   const DEC = new TextDecoder('utf-8', { fatal: false });
+  const roster = new Map();
+  const watched = new WeakSet();
+  const pending = new Map();
+  let flushTimer = null;
+  let channelId = 50000;
+  let subscriptionSeq = 0;
+  let subscriptionTimer = null;
+  let parseGapReported = false;
+  let recoveryInFlight = false;
+  let disconnectTimer = null;
 
-  function rd(bytes) { return { b: bytes, i: 0 }; }
+  function dispatch(detail) {
+    try {
+      document.documentElement.dispatchEvent(new CustomEvent(EVENT, { detail }));
+    } catch (e) { /* page is leaving */ }
+  }
+
+  function diagnostic(code, details) {
+    const detail = Object.assign({ type: 'diagnostic', code }, details || {});
+    console.warn('[LiveScribe] Meet ' + code, details || '');
+    dispatch(detail);
+  }
+
+  // ---- protobuf wire helpers ----------------------------------------------
+  function reader(bytes) { return { bytes, index: 0 }; }
+
   function varint(r) {
-    let x = 0, shift = 0;
-    while (r.i < r.b.length) {
-      const c = r.b[r.i++];
-      x += (c & 0x7f) * Math.pow(2, shift);
-      if (!(c & 0x80)) break;
+    let value = 0, shift = 0;
+    while (r.index < r.bytes.length) {
+      const byte = r.bytes[r.index++];
+      value += (byte & 0x7f) * Math.pow(2, shift);
+      if (!(byte & 0x80)) break;
       shift += 7;
       if (shift > 56) break;
     }
-    return x;
+    return value;
   }
-  function bytesOf(r) { const n = varint(r); const out = r.b.subarray(r.i, r.i + n); r.i += n; return out; }
+
+  function bytesOf(r) {
+    const size = varint(r);
+    if (!Number.isFinite(size) || size < 0 || r.index + size > r.bytes.length) {
+      r.index = r.bytes.length;
+      return new Uint8Array();
+    }
+    const out = r.bytes.subarray(r.index, r.index + size);
+    r.index += size;
+    return out;
+  }
+
   function skip(r, wire) {
     if (wire === 0) varint(r);
+    else if (wire === 1) r.index = Math.min(r.bytes.length, r.index + 8);
     else if (wire === 2) bytesOf(r);
-    else if (wire === 5) r.i += 4;
-    else if (wire === 1) r.i += 8;
-    else r.i = r.b.length;
+    else if (wire === 5) r.index = Math.min(r.bytes.length, r.index + 4);
+    else r.index = r.bytes.length;
   }
-  // Walk a message, handing (field, wire, reader) to a visitor.
+
   function walk(bytes, visit) {
-    const r = rd(bytes);
-    while (r.i < r.b.length) {
+    const r = reader(bytes);
+    let fields = 0;
+    while (r.index < r.bytes.length && fields++ < 1000) {
       const key = varint(r);
       if (!key) break;
       const field = key >>> 3, wire = key & 7;
+      if (!field || wire > 5) break;
       if (!visit(field, wire, r)) skip(r, wire);
     }
   }
-  // Descend a chain of single length-delimited fields, e.g. [2,2,2].
+
   function dive(bytes, fields) {
-    let cur = bytes;
-    for (const want of fields) {
+    let current = bytes;
+    for (const wanted of fields) {
       let next = null;
-      walk(cur, (f, w, r) => {
-        if (f === want && w === 2 && !next) { next = bytesOf(r); return true; }
+      walk(current, (field, wire, r) => {
+        if (field === wanted && wire === 2 && !next) {
+          next = bytesOf(r);
+          return true;
+        }
         return false;
       });
-      if (!next) return null;
-      cur = next;
+      if (!next || !next.length) return null;
+      current = next;
     }
-    return cur;
+    return current;
   }
 
   function decodeTranscript(bytes) {
     const out = {};
-    walk(bytes, (f, w, r) => {
-      if (f === 1 && w === 2) { out.deviceId = DEC.decode(bytesOf(r)); return true; }
-      if (f === 2 && w === 0) { out.messageId = varint(r); return true; }
-      if (f === 3 && w === 0) { out.messageVersion = varint(r); return true; }
-      if (f === 6 && w === 2) { out.text = DEC.decode(bytesOf(r)); return true; }
-      if (f === 8 && w === 0) { out.langId = varint(r); return true; }
+    walk(bytes, (field, wire, r) => {
+      if (field === 1 && wire === 2) { out.deviceId = DEC.decode(bytesOf(r)); return true; }
+      if (field === 2 && wire === 0) { out.messageId = varint(r); return true; }
+      if (field === 3 && wire === 0) { out.messageVersion = varint(r); return true; }
+      if (field === 6 && wire === 2) { out.text = DEC.decode(bytesOf(r)); return true; }
+      if (field === 8 && wire === 0) { out.langId = varint(r); return true; }
       return false;
     });
-    return out.text ? out : null;
+    if (!out.deviceId || !out.text || out.messageId == null) return null;
+    out.messageVersion = out.messageVersion || 0;
+    return out;
   }
 
+  // The first decoder handles the current wrapper. The recursive decoder is a
+  // bounded compatibility path for additional protobuf envelopes; it still
+  // requires the full caption field set and never guesses based on random text.
   function decodeCaptionFrame(bytes) {
-    // The wrapper carries the transcript in field 1; some frames arrive bare.
-    const inner = dive(bytes, [1]);
-    return (inner && decodeTranscript(inner)) || decodeTranscript(bytes);
-  }
+    const current = dive(bytes, [1]);
+    const exact = (current && decodeTranscript(current)) || decodeTranscript(bytes);
+    if (exact) return exact;
 
-  // deviceId -> display name, so speakers are named rather than inferred.
-  const roster = new Map();
+    const seen = new Set();
+    function recurse(message, depth) {
+      if (!message || !message.length || depth > 4) return null;
+      const key = message.byteOffset + ':' + message.byteLength;
+      if (seen.has(key)) return null;
+      seen.add(key);
+      const direct = decodeTranscript(message);
+      if (direct) return direct;
+      const children = [];
+      walk(message, (field, wire, r) => {
+        if (wire === 2) {
+          const child = bytesOf(r);
+          if (child.length >= 4) children.push(child);
+          return true;
+        }
+        return false;
+      });
+      for (const child of children) {
+        const found = recurse(child, depth + 1);
+        if (found) return found;
+      }
+      return null;
+    }
+    return recurse(bytes, 0);
+  }
 
   function readDevice(bytes) {
-    const d = {};
-    walk(bytes, (f, w, r) => {
-      if (f === 1 && w === 2) { d.deviceId = DEC.decode(bytesOf(r)); return true; }
-      if (f === 2 && w === 2) { d.deviceName = DEC.decode(bytesOf(r)); return true; }
+    const device = {};
+    walk(bytes, (field, wire, r) => {
+      if (field === 1 && wire === 2) { device.id = DEC.decode(bytesOf(r)); return true; }
+      if (field === 2 && wire === 2) { device.name = DEC.decode(bytesOf(r)); return true; }
       return false;
     });
-    if (d.deviceId && d.deviceName) { roster.set(d.deviceId, d.deviceName); return true; }
-    return false;
+    if (!device.id || !device.name || !/devices\//.test(device.id)) return false;
+    roster.set(device.id, device.name);
+    return true;
   }
 
   function decodeRoster(bytes) {
     let found = 0;
-    // BMeetingCollection: a repeated list of devices three levels down.
-    const list = dive(bytes, [2, 2]);
-    if (list) walk(list, (f, w, r) => {
-      if (f === 2 && w === 2) { if (readDevice(bytesOf(r))) found++; return true; }
-      return false;
-    });
-    // BDevice: a single device down a longer chain.
-    const one = dive(bytes, [1, 2, 13, 1, 2]);
-    if (one && readDevice(one)) found++;
+    const visited = new Set();
+    function recurse(message, depth) {
+      if (!message || !message.length || depth > 6) return;
+      const key = message.byteOffset + ':' + message.byteLength;
+      if (visited.has(key)) return;
+      visited.add(key);
+      if (readDevice(message)) found++;
+      walk(message, (field, wire, r) => {
+        if (wire === 2) {
+          const child = bytesOf(r);
+          if (child.length >= 4) recurse(child, depth + 1);
+          return true;
+        }
+        return false;
+      });
+    }
+    recurse(bytes, 0);
     return found;
   }
 
-  function handle(data, origin) {
-    let bytes = null;
-    const t = Object.prototype.toString.call(data);
-    if (t === '[object ArrayBuffer]') bytes = new Uint8Array(data);
-    else if (ArrayBuffer.isView(data)) bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-    else if (t === '[object Blob]' && data.arrayBuffer) {
-      data.arrayBuffer().then(ab => handle(ab, origin)).catch(() => {});
-      return;
-    }
-    if (!bytes || !bytes.length) return;
-    if (samples.length < MAX_SAMPLES) samples.push({ origin, bytes: bytes.length });
-
-    // The roster channel names the speakers; the captions channel carries speech.
-    if (origin.indexOf(COLLECTIONS_LABEL) !== -1) {
-      const before = roster.size;
-      try { decodeRoster(bytes); } catch (e) { /* schema drift */ }
-      if (roster.size !== before) console.log('[LiveScribe] Meet roster: ' + roster.size + ' participants known');
-      return;
-    }
-
-    let m = null;
-    try { m = decodeCaptionFrame(bytes); } catch (e) { m = null; }
-    if (!m) return;
-    emit({
-      text: m.text.trim(),
-      speaker: roster.get(m.deviceId) || null,
-      id: m.messageId + '/' + m.deviceId,
-      version: m.messageVersion,
-    });
+  function rawBytes(data) {
+    const tag = Object.prototype.toString.call(data);
+    if (tag === '[object ArrayBuffer]') return new Uint8Array(data);
+    if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+    return null;
   }
 
-  function emit(cap) {
-    if (!cap.text) return;
-    emitted++;
+  function gzipOffset(bytes) {
+    if (bytes.length >= 3 && bytes[0] === 0x1f && bytes[1] === 0x8b && bytes[2] === 0x08) return 0;
+    if (bytes.length >= 6 && bytes[3] === 0x1f && bytes[4] === 0x8b && bytes[5] === 0x08) return 3;
+    return -1;
+  }
+
+  async function decompress(bytes) {
+    const offset = gzipOffset(bytes);
+    if (offset < 0) return bytes;
+    if (typeof DecompressionStream !== 'function' || typeof Blob !== 'function') {
+      diagnostic('gzip-unsupported');
+      return null;
+    }
     try {
-      document.documentElement.dispatchEvent(new CustomEvent(EVENT, {
-        detail: { type: 'speech', id: cap.id, speaker: cap.speaker, text: cap.text },
-      }));
-    } catch (e) { /* ignore */ }
+      const stream = new Blob([bytes.subarray(offset)]).stream()
+        .pipeThrough(new DecompressionStream('gzip'));
+      const reader = stream.getReader();
+      const chunks = [];
+      let size = 0;
+      for (;;) {
+        const part = await reader.read();
+        if (part.done) break;
+        chunks.push(part.value);
+        size += part.value.byteLength;
+      }
+      const out = new Uint8Array(size);
+      let cursor = 0;
+      for (const chunk of chunks) { out.set(chunk, cursor); cursor += chunk.byteLength; }
+      return out;
+    } catch (error) {
+      diagnostic('gzip-decode-failed', { message: error && error.message });
+      return null;
+    }
   }
 
-  // ---- subscribing ---------------------------------------------------------
-  // Opening the channel is not enough: Meet's media server sends nothing until
-  // the client asks for captions on it. (Observed live: the channel opened, one
-  // 4-byte handshake came back, and no captions ever followed.) The request is a
-  // caption-config update, followed by two acks, exactly as Meet's own client
-  // does it. Field numbers below are the wire schema of these messages:
-  //
-  //   BigPacket{ envelope=1 { command=2 { op=1, captionUpdate=3 {
-  //       clientConfig=1 { captionConfig=9 { lang_1=1, lang_2=2 } },
-  //       updateMask=2 { paths=1 } } } } }
-  //   SmallPacket{ envelope=1 { ack=1 { seq=2, ok=3 } } }
-  const utf8 = (s) => Array.from(new TextEncoder().encode(s));
+  // ---- caption batching ---------------------------------------------------
+  function flushCaptions() {
+    flushTimer = null;
+    const messages = [...pending.values()];
+    pending.clear();
+    messages.sort((a, b) => a.receivedAt - b.receivedAt);
+    for (const cap of messages) {
+      state.emitted++;
+      dispatch({
+        type: 'speech',
+        id: cap.id,
+        speaker: cap.speaker,
+        text: cap.text,
+        version: cap.version,
+      });
+    }
+  }
 
-  function vi(n) { const o = []; while (n > 127) { o.push((n & 0x7f) | 0x80); n = Math.floor(n / 128); } o.push(n & 0x7f); return o; }
-  const pbInt = (tag, v) => [...vi(tag), ...vi(v)];
-  const pbLen = (tag, bytes) => [...vi(tag), ...vi(bytes.length), ...bytes];
-  const pbStr = (tag, s) => pbLen(tag, utf8(s));
+  function queueCaption(message) {
+    const text = String(message.text || '').replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    const id = message.messageId + '/' + message.deviceId;
+    const version = Number(message.messageVersion) || 0;
+    const previous = pending.get(id);
+    if (previous && previous.version > version) return;
+    pending.set(id, {
+      id,
+      version,
+      text,
+      speaker: roster.get(message.deviceId) || null,
+      receivedAt: Date.now(),
+    });
+    if (!flushTimer) flushTimer = setTimeout(flushCaptions, config.batchMs);
+  }
 
-  function buildCaptionRequest(op, lang) {
-    const captionConfig = [...pbStr(10, lang), ...pbStr(18, lang)];
+  async function handleCaptionData(data) {
+    if (Object.prototype.toString.call(data) === '[object Blob]' && data.arrayBuffer) {
+      try { return handleCaptionData(await data.arrayBuffer()); } catch (e) { return; }
+    }
+    let bytes = rawBytes(data);
+    if (!bytes || !bytes.length) return;
+    state.rawPackets++;
+    state.lastCaptionPacketAt = Date.now();
+    bytes = await decompress(bytes);
+    if (!bytes) return;
+
+    let message = null;
+    try { message = decodeCaptionFrame(bytes); } catch (e) { message = null; }
+    if (!message) {
+      state.parseMisses++;
+      if (state.parseMisses >= config.parseGapPackets && !parseGapReported) {
+        parseGapReported = true;
+        diagnostic('caption-parse-gap', {
+          consecutivePackets: state.parseMisses,
+          firstBytes: Array.from(bytes.slice(0, 16)).join(','),
+        });
+      }
+      return;
+    }
+
+    state.parsedPackets++;
+    state.parseMisses = 0;
+    state.recoveries = 0;
+    state.lastCaptionParsedAt = Date.now();
+    parseGapReported = false;
+    queueCaption(message);
+  }
+
+  function handleCollectionsData(data) {
+    if (Object.prototype.toString.call(data) === '[object Blob]' && data.arrayBuffer) {
+      data.arrayBuffer().then(handleCollectionsData).catch(() => {});
+      return;
+    }
+    const bytes = rawBytes(data);
+    if (!bytes) return;
+    const before = roster.size;
+    try { decodeRoster(bytes); } catch (e) { /* schema drift is non-fatal */ }
+    if (roster.size !== before) console.log('[LiveScribe] Meet roster: ' + roster.size + ' participants known');
+  }
+
+  // ---- caption subscription packets --------------------------------------
+  const utf8 = value => Array.from(new TextEncoder().encode(value));
+  function encodeVarint(value) {
+    const out = [];
+    while (value > 127) {
+      out.push((value & 0x7f) | 0x80);
+      value = Math.floor(value / 128);
+    }
+    out.push(value & 0x7f);
+    return out;
+  }
+  const pbInt = (tag, value) => [...encodeVarint(tag), ...encodeVarint(value)];
+  const pbLen = (tag, bytes) => [...encodeVarint(tag), ...encodeVarint(bytes.length), ...bytes];
+  const pbStr = (tag, value) => pbLen(tag, utf8(value));
+
+  function buildCaptionRequest(op, language) {
+    const captionConfig = [...pbStr(10, language), ...pbStr(18, language)];
     const clientConfig = pbLen(74, captionConfig);
     const fieldMask = pbStr(10, 'client_config.caption_config');
     const captionUpdate = [...pbLen(10, clientConfig), ...pbLen(18, fieldMask)];
@@ -209,127 +364,333 @@
   }
 
   function buildAck(seq) {
-    const ack = [...pbInt(16, seq), ...pbInt(24, 1)];
-    return new Uint8Array(pbLen(10, pbLen(10, ack)));
+    return new Uint8Array(pbLen(10, pbLen(10, [...pbInt(16, seq), ...pbInt(24, 1)])));
   }
 
-  // The request does NOT go on the captions channel. Meet accepts session
-  // configuration on a separate channel labelled "media-session"; sending it on
-  // the captions channel gets no reply beyond the initial handshake, which is
-  // exactly the dead end observed live (channel open, one 4-byte frame, no text).
-  let seq = 0;
-  function subscribe(lang) {
-    const ch = state.ms;
-    if (!ch) { console.warn('[LiveScribe] no "media-session" channel yet — join the meeting first'); return false; }
-    if (ch.readyState !== 'open') { console.warn('[LiveScribe] "media-session" channel not open yet'); return false; }
+  function extractCaptionLanguage(bytes) {
     try {
-      const op = ++seq;
-      ch.send(buildCaptionRequest(op, lang || state.lang || 'en-US'));
-      ch.send(buildAck(op));
-      ch.send(buildAck(op + 1));
-      console.log('[LiveScribe] requested Meet captions on the media-session channel (lang ' +
-        (lang || state.lang || 'en-US') + ')');
+      const captionConfig = dive(bytes, [1, 2, 3, 1, 9]);
+      if (!captionConfig) return null;
+      let language = null;
+      walk(captionConfig, (field, wire, r) => {
+        if (field === 1 && wire === 2) { language = DEC.decode(bytesOf(r)); return true; }
+        return false;
+      });
+      return language;
+    } catch (e) { return null; }
+  }
+
+  function observeMediaSend(channel) {
+    if (channel.__ls_send_observed) return;
+    const original = channel.send;
+    if (typeof original !== 'function') return;
+    try { Object.defineProperty(channel, '__ls_send_observed', { value: true }); } catch (e) { return; }
+    channel.send = function (data) {
+      try {
+        const bytes = rawBytes(data);
+        const language = bytes && extractCaptionLanguage(bytes);
+        if (language) state.lang = language;
+      } catch (e) { /* preserve Meet's send path */ }
+      return original.apply(this, arguments);
+    };
+  }
+
+  function subscribe(language) {
+    const channel = state.ms;
+    if (!channel || channel.readyState !== 'open') return false;
+    const selected = language || state.lang || preferredLanguage();
+    try {
+      const op = ++subscriptionSeq;
+      channel.send(buildCaptionRequest(op, selected));
+      channel.send(buildAck(op));
+      channel.send(buildAck(op + 1));
+      state.lang = selected;
+      const sentAt = Date.now();
+      clearTimeout(subscriptionTimer);
+      subscriptionTimer = setTimeout(() => {
+        if (state.lastMediaResponseAt < sentAt) {
+          diagnostic('caption-subscription-unconfirmed', { language: selected });
+        }
+      }, config.subscribeAckMs);
+      console.log('[LiveScribe] requested Meet captions on media-session (lang ' + selected + ')');
       return true;
-    } catch (e) {
-      console.warn('[LiveScribe] caption request failed:', e.message);
+    } catch (error) {
+      diagnostic('caption-subscription-failed', { message: error && error.message });
       return false;
     }
   }
-  window.LSSubscribeMeet = (lang) => subscribe(lang);
+  window.LSSubscribeMeet = subscribe;
 
-  // ---- channel wiring ------------------------------------------------------
-  // Meet splits its data channels by job:
-  //   media-session — session config goes OUT here (this is where we subscribe)
-  //   captions      — caption text comes IN here
-  //   collections   — participant records, and speech as well
-  function watch(ch, origin) {
-    if (!ch || ch.__ls_watched) return;
-    const label = ch.label;
-    if (label !== LABEL && label !== MEDIA_LABEL && label !== COLLECTIONS_LABEL) return;
-    try { Object.defineProperty(ch, '__ls_watched', { value: true }); } catch (e) { return; }
+  // ---- channel lifecycle --------------------------------------------------
+  function canUsePC(pc) {
+    return pc && pc === state.pc && pc.connectionState !== 'closed' && pc.connectionState !== 'failed';
+  }
 
-    if (label === MEDIA_LABEL) {
-      state.ms = ch;
-      seq = 0;
-      console.log('[LiveScribe] found Meet "media-session" channel (' + origin + ')');
-      const go = () => subscribe(state.lang);
-      if (ch.readyState === 'open') go();
-      else ch.addEventListener('open', go, { once: true });
+  function nextChannelId() { channelId += 1; return channelId; }
+
+  function openCaptionChannel(reason, force) {
+    const pc = state.pc;
+    if (!canUsePC(pc)) return false;
+    if (!force && state.cc && state.cc.readyState !== 'closed' && state.cc.readyState !== 'closing') return false;
+    try {
+      const channel = pc.createDataChannel(LABEL_CAPTIONS, {
+        ordered: true,
+        maxRetransmits: 10,
+        id: nextChannelId(),
+      });
+      watch(channel, 'local:' + (reason || 'initial'));
+      return true;
+    } catch (firstError) {
+      // Some Chromium/Meet combinations reserve explicit stream IDs. A fallback
+      // keeps capture available even if the browser must allocate the ID.
+      try {
+        const channel = pc.createDataChannel(LABEL_CAPTIONS, { ordered: true, maxRetransmits: 10 });
+        watch(channel, 'local-fallback:' + (reason || 'initial'));
+        return true;
+      } catch (error) {
+        diagnostic('caption-channel-open-failed', { message: error && error.message });
+        return false;
+      }
+    }
+  }
+  window.LSOpenMeetCaptions = () => openCaptionChannel('manual', true);
+
+  function recoverCaptionChannel(reason) {
+    if (recoveryInFlight || state.recoveries >= config.maxRecoveries) {
+      if (state.recoveries >= config.maxRecoveries) {
+        diagnostic('caption-recovery-exhausted', { reason, attempts: state.recoveries });
+      }
+      return false;
+    }
+    recoveryInFlight = true;
+    state.recoveries++;
+    const opened = openCaptionChannel(reason, true);
+    recoveryInFlight = false;
+    if (opened) {
+      diagnostic('caption-channel-reopened', { reason, attempt: state.recoveries });
+      subscribe(state.lang);
+    }
+    return opened;
+  }
+
+  function adoptCaptionChannel(channel, origin) {
+    const previous = state.cc;
+    state.cc = channel;
+    state.lastCaptionPacketAt = Date.now();
+    if (previous && previous !== channel && previous.readyState === 'open') {
+      console.log('[LiveScribe] adopted newer Meet captions channel (' + origin + ')');
+    }
+    if (state.ms) subscribe(state.lang);
+  }
+
+  function watch(channel, origin) {
+    if (!channel || watched.has(channel)) return;
+    const label = channel.label;
+    if (label !== LABEL_CAPTIONS && label !== LABEL_MEDIA && label !== LABEL_COLLECTIONS) return;
+    watched.add(channel);
+
+    if (label === LABEL_MEDIA) {
+      state.ms = channel;
+      subscriptionSeq = 0;
+      observeMediaSend(channel);
+      channel.addEventListener('message', () => {
+        state.lastMediaResponseAt = Date.now();
+        clearTimeout(subscriptionTimer);
+      });
+      const start = () => subscribe(state.lang);
+      if (channel.readyState === 'open') start();
+      else channel.addEventListener('open', start, { once: true });
+      console.log('[LiveScribe] watching Meet media-session channel (' + origin + ')');
       return;
     }
 
-    ch.addEventListener('message', (ev) => {
-      // Never swallow silently: an exception here once looked exactly like
-      // "the server sent nothing", which is a very expensive thing to debug.
-      try { handle(ev.data, origin + ':' + label); }
-      catch (e) { console.warn('[LiveScribe] Meet frame handler failed:', e && e.message); }
+    if (label === LABEL_COLLECTIONS) {
+      channel.addEventListener('message', event => handleCollectionsData(event.data));
+      console.log('[LiveScribe] watching Meet collections channel (' + origin + ')');
+      return;
+    }
+
+    adoptCaptionChannel(channel, origin);
+    channel.addEventListener('message', event => {
+      handleCaptionData(event.data).catch(error => {
+        diagnostic('caption-handler-failed', { message: error && error.message });
+      });
     });
-    console.log('[LiveScribe] watching Meet "' + label + '" data channel (' + origin + ')');
+    channel.addEventListener('close', () => {
+      if (state.cc === channel) {
+        setTimeout(() => {
+          if (state.cc === channel) recoverCaptionChannel('channel-closed');
+        }, 0);
+      }
+    });
+    console.log('[LiveScribe] watching Meet captions channel (' + origin + ')');
   }
 
-  // Meet's server will serve captions to a channel we open ourselves, which is
-  // why captions need not be switched on in the UI first.
-  function openCaptionChannel() {
-    if (!state.pc || state.cc) return false;
+  // ---- initial participant roster ----------------------------------------
+  function decodeBase64Payload(text) {
+    const cleaned = String(text || '').replace(/^\)\]\}'\s*/, '').trim().replace(/^"|"$/g, '');
+    if (!cleaned) return null;
     try {
-      const ch = state.pc.createDataChannel(LABEL, { ordered: true, maxRetransmits: 10 });
-      state.cc = ch;
-      watch(ch, 'local');
-      return true;
-    } catch (e) {
-      console.warn('[LiveScribe] could not open Meet captions channel:', e.message);
-      return false;
+      const binary = atob(cleaned);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes;
+    } catch (e) { return null; }
+  }
+
+  const nativeFetch = window.fetch;
+  if (typeof nativeFetch === 'function') {
+    window.fetch = function () {
+      const args = arguments;
+      return nativeFetch.apply(this, args).then(response => {
+        try {
+          const requestUrl = String(response && response.url || args[0] || '');
+          if (requestUrl.includes(SYNC_COLLECTIONS) && response.clone) {
+            response.clone().text().then(text => {
+              const bytes = decodeBase64Payload(text);
+              if (!bytes) return;
+              const before = roster.size;
+              decodeRoster(bytes);
+              if (roster.size !== before) console.log('[LiveScribe] seeded Meet roster: ' + roster.size);
+            }).catch(() => {});
+          }
+        } catch (e) { /* preserve fetch */ }
+        return response;
+      });
+    };
+  }
+
+  // ---- WebRTC activity health --------------------------------------------
+  async function audioEnergy(pc) {
+    if (!pc || typeof pc.getStats !== 'function') return null;
+    try {
+      const reports = await pc.getStats();
+      let total = 0, found = false;
+      const visit = report => {
+        const kind = report && (report.kind || report.mediaType);
+        if (!report || report.type !== 'inbound-rtp' || kind !== 'audio') return;
+        if (Number.isFinite(report.totalAudioEnergy)) {
+          total += report.totalAudioEnergy;
+          found = true;
+        }
+      };
+      if (reports && typeof reports.forEach === 'function') reports.forEach(visit);
+      return found ? total : null;
+    } catch (e) { return null; }
+  }
+
+  async function healthTick() {
+    const pc = state.pc;
+    if (!canUsePC(pc)) return;
+    if (state.cc && (state.cc.readyState === 'closed' || state.cc.readyState === 'closing')) {
+      recoverCaptionChannel('channel-state-' + state.cc.readyState);
+      return;
+    }
+    const energy = await audioEnergy(pc);
+    if (energy == null) return;
+    const previous = state.lastAudioEnergy;
+    state.lastAudioEnergy = energy;
+    const advancing = previous != null && energy > previous + 1e-9;
+    const silentFor = Date.now() - (state.lastCaptionPacketAt || Date.now());
+    if (advancing && silentFor >= config.silenceMs) {
+      recoverCaptionChannel('audio-active-caption-silent');
     }
   }
-  window.LSOpenMeetCaptions = openCaptionChannel;
+  const healthTimer = setInterval(() => { healthTick().catch(() => {}); }, config.healthMs);
 
+  // ---- RTCPeerConnection interception -------------------------------------
   const NativePC = window.RTCPeerConnection;
   if (NativePC) {
-    function PatchedPC(...args) {
-      const pc = new NativePC(...args);
+    const nativeCreateDataChannel = NativePC.prototype.createDataChannel;
+    function PatchedPC() {
+      const pc = Reflect.construct(NativePC, arguments, new.target || PatchedPC);
+      const startingNewMeeting = state.ended;
       state.pc = pc;
+      if (startingNewMeeting) {
+        clearTimeout(disconnectTimer);
+        disconnectTimer = null;
+        clearTimeout(subscriptionTimer);
+        subscriptionTimer = null;
+        clearTimeout(flushTimer);
+        flushTimer = null;
+        pending.clear();
+        roster.clear();
+        state.cc = null;
+        state.ms = null;
+        state.recoveries = 0;
+        state.lastAudioEnergy = null;
+        state.lastCaptionPacketAt = Date.now();
+        state.lastCaptionParsedAt = 0;
+        state.lastMediaResponseAt = 0;
+        state.parseMisses = 0;
+        parseGapReported = false;
+        recoveryInFlight = false;
+        subscriptionSeq = 0;
+      }
+      state.ended = false;
       try {
-        pc.addEventListener('datachannel', (ev) => watch(ev.channel, 'remote'));
-        // Leaving a call tears the peer connection down. That is a structural
-        // fact about the call, unlike sniffing the URL or the DOM, which keep
-        // looking "in a meeting" on the page that follows.
+        pc.addEventListener('datachannel', event => watch(event.channel, 'remote'));
         pc.addEventListener('connectionstatechange', () => {
-          const st = pc.connectionState;
-          if (st !== 'closed' && st !== 'failed' && st !== 'disconnected') return;
-          if (state.ended) return;
-          state.ended = true;
-          console.log('[LiveScribe] Meet peer connection ' + st + ' — call has ended');
-          try {
-            document.documentElement.dispatchEvent(new CustomEvent(EVENT, {
-              detail: { type: 'ended', via: 'peerconnection-' + st },
-            }));
-          } catch (e) {}
+          if (state.pc !== pc) return;
+          const connectionState = pc.connectionState;
+          if (connectionState === 'connected' || connectionState === 'connecting') {
+            clearTimeout(disconnectTimer);
+            disconnectTimer = null;
+            return;
+          }
+          const finish = endingState => {
+            if (state.pc !== pc || state.ended) return;
+            state.ended = true;
+            dispatch({ type: 'ended', via: 'peerconnection-' + endingState });
+          };
+          if (connectionState === 'closed' || connectionState === 'failed') {
+            clearTimeout(disconnectTimer);
+            disconnectTimer = null;
+            finish(connectionState);
+          } else if (connectionState === 'disconnected' && !disconnectTimer) {
+            disconnectTimer = setTimeout(() => {
+              disconnectTimer = null;
+              if (pc.connectionState === 'disconnected') finish('disconnected');
+            }, config.disconnectGraceMs);
+          }
         });
-      } catch (e) {}
-      // Give Meet a moment to finish negotiating before adding our channel.
-      setTimeout(() => { if (state.pc === pc) openCaptionChannel(); }, 1500);
+      } catch (e) { /* incomplete browser mock */ }
+      setTimeout(() => {
+        if (state.pc === pc) openCaptionChannel('initial', false);
+      }, config.openDelayMs);
       return pc;
     }
     PatchedPC.prototype = NativePC.prototype;
     try {
-      window.RTCPeerConnection = PatchedPC;
-      const origCDC = NativePC.prototype.createDataChannel;
-      NativePC.prototype.createDataChannel = function (...a) {
-        const ch = origCDC.apply(this, a);
-        watch(ch, 'page');
-        return ch;
+      NativePC.prototype.createDataChannel = function () {
+        const channel = nativeCreateDataChannel.apply(this, arguments);
+        watch(channel, 'page');
+        return channel;
       };
-      console.log('[LiveScribe] Meet WebRTC tap installed (MAIN world)');
-    } catch (e) {
-      console.warn('[LiveScribe] failed to patch RTCPeerConnection:', e.message);
+      window.RTCPeerConnection = PatchedPC;
+      console.log('[LiveScribe] Meet WebRTC resilience tap installed (MAIN world)');
+    } catch (error) {
+      diagnostic('rtc-patch-failed', { message: error && error.message });
     }
   }
 
-  // Console helper — lives in the MAIN world where DevTools evaluates.
   window.LSDumpMeet = () => {
-    const out = { captionsChannel: !!state.cc, peerConnection: !!state.pc, emitted, samples };
-    console.log('[LiveScribe] Meet caption frames:');
-    console.log(JSON.stringify(out, null, 2));
-    return out;
+    const output = {
+      captionsChannel: !!state.cc,
+      captionsState: state.cc && state.cc.readyState,
+      mediaSessionChannel: !!state.ms,
+      peerConnection: !!state.pc,
+      language: state.lang,
+      rosterSize: roster.size,
+      emitted: state.emitted,
+      rawPackets: state.rawPackets,
+      parsedPackets: state.parsedPackets,
+      parseMisses: state.parseMisses,
+      recoveries: state.recoveries,
+      lastCaptionPacketAt: state.lastCaptionPacketAt,
+      lastCaptionParsedAt: state.lastCaptionParsedAt,
+    };
+    console.log('[LiveScribe] Meet capture state:', output);
+    return output;
   };
 })();
