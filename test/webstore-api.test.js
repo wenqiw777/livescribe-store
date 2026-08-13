@@ -18,6 +18,7 @@ assert(/token_format:\s*access_token/.test(workflow), 'workflow requests a short
 assert(/chromewebstore\.googleapis\.com/.test(script) && /\/upload\/v2\//.test(script),
   'script uses the Web Store V2 upload endpoint');
 assert(/:fetchStatus/.test(script), 'script verifies the uploaded revision');
+assert(/SUCCEEDED/.test(script), 'script accepts the Web Store V2 successful upload state');
 assert(/:publish/.test(script), 'script submits the revision for review');
 assert(!/(client_secret|refresh_token)\s*[:=]\s*["'][^"']+/i.test(workflow + script),
   'no OAuth client secret or refresh token is committed');
