@@ -13,9 +13,12 @@
   const LABEL_CAPTIONS = 'captions';
   const LABEL_MEDIA = 'media-session';
   const LABEL_COLLECTIONS = 'collections';
+  const LABEL_MESSAGES = 'meet_messages';
   const SYNC_COLLECTIONS = 'MeetingSpaceService/SyncMeetingSpaceCollections';
+  const CREATE_MESSAGE = 'MeetingMessageService/CreateMeetingMessage';
   const config = Object.assign({
     batchMs: 500,
+    chatBatchMs: 500,
     openDelayMs: 1500,
     healthMs: 10000,
     silenceMs: 60000,
@@ -38,6 +41,8 @@
     emitted: 0,
     rawPackets: 0,
     parsedPackets: 0,
+    chatPackets: 0,
+    chatEmitted: 0,
     parseMisses: 0,
     recoveries: 0,
     lastCaptionPacketAt: 0,
@@ -51,7 +56,10 @@
   const roster = new Map();
   const watched = new WeakSet();
   const pending = new Map();
+  const pendingChats = new Map();
+  const seenChatIds = new Set();
   let flushTimer = null;
+  let chatFlushTimer = null;
   let channelId = 50000;
   let subscriptionSeq = 0;
   let subscriptionTimer = null;
@@ -164,6 +172,60 @@
       if (seen.has(key)) return null;
       seen.add(key);
       const direct = decodeTranscript(message);
+      if (direct) return direct;
+      const children = [];
+      walk(message, (field, wire, r) => {
+        if (wire === 2) {
+          const child = bytesOf(r);
+          if (child.length >= 4) children.push(child);
+          return true;
+        }
+        return false;
+      });
+      for (const child of children) {
+        const found = recurse(child, depth + 1);
+        if (found) return found;
+      }
+      return null;
+    }
+    return recurse(bytes, 0);
+  }
+
+  function decodeChatMessage(bytes) {
+    const out = {};
+    walk(bytes, (field, wire, r) => {
+      if (field === 2 && wire === 2) { out.deviceId = DEC.decode(bytesOf(r)); return true; }
+      if (field === 3 && wire === 0) { out.timestamp = varint(r); return true; }
+      if (field === 5 && wire === 2) {
+        const textMessage = bytesOf(r);
+        walk(textMessage, (textField, textWire, textReader) => {
+          if (textField === 1 && textWire === 2) {
+            out.text = DEC.decode(bytesOf(textReader));
+            return true;
+          }
+          return false;
+        });
+        return true;
+      }
+      return false;
+    });
+    if (!out.deviceId || out.timestamp == null || !out.text) return null;
+    return out;
+  }
+
+  function decodeChatFrame(bytes) {
+    // Current Meet wrapper: l1(1) -> l2(2) -> l3(13) -> l4(4) -> message(2).
+    const wrapped = dive(bytes, [1, 2, 13, 4, 2]);
+    const exact = (wrapped && decodeChatMessage(wrapped)) || decodeChatMessage(bytes);
+    if (exact) return exact;
+
+    const visited = new Set();
+    function recurse(message, depth) {
+      if (!message || !message.length || depth > 6) return null;
+      const key = message.byteOffset + ':' + message.byteLength;
+      if (visited.has(key)) return null;
+      visited.add(key);
+      const direct = decodeChatMessage(message);
       if (direct) return direct;
       const children = [];
       walk(message, (field, wire, r) => {
@@ -327,6 +389,44 @@
     queueCaption(message);
   }
 
+  async function handleChatData(data) {
+    if (Object.prototype.toString.call(data) === '[object Blob]' && data.arrayBuffer) {
+      try { return handleChatData(await data.arrayBuffer()); } catch (e) { return; }
+    }
+    let bytes = rawBytes(data);
+    if (!bytes || !bytes.length) return;
+    bytes = await decompress(bytes);
+    if (!bytes) return;
+
+    let message = null;
+    try { message = decodeChatFrame(bytes); } catch (e) { message = null; }
+    if (!message) return;
+    state.chatPackets++;
+    const id = message.timestamp + '/' + message.deviceId;
+    if (seenChatIds.has(id)) return;
+    seenChatIds.add(id);
+    if (seenChatIds.size > 2000) seenChatIds.delete(seenChatIds.values().next().value);
+    pendingChats.set(id, message);
+    if (!chatFlushTimer) {
+      chatFlushTimer = setTimeout(() => {
+        chatFlushTimer = null;
+        const messages = [...pendingChats.entries()];
+        pendingChats.clear();
+        for (const [chatId, chat] of messages) {
+          state.chatEmitted++;
+          dispatch({
+            type: 'chat',
+            id: chatId,
+            deviceId: chat.deviceId,
+            speaker: roster.get(chat.deviceId) || null,
+            text: String(chat.text).replace(/\s+/g, ' ').trim(),
+            timestamp: chat.timestamp,
+          });
+        }
+      }, config.chatBatchMs);
+    }
+  }
+
   function handleCollectionsData(data) {
     if (Object.prototype.toString.call(data) === '[object Blob]' && data.arrayBuffer) {
       data.arrayBuffer().then(handleCollectionsData).catch(() => {});
@@ -334,6 +434,7 @@
     }
     const bytes = rawBytes(data);
     if (!bytes) return;
+    handleChatData(bytes).catch(() => {});
     const before = roster.size;
     try { decodeRoster(bytes); } catch (e) { /* schema drift is non-fatal */ }
     if (roster.size !== before) console.log('[LiveScribe] Meet roster: ' + roster.size + ' participants known');
@@ -486,7 +587,8 @@
   function watch(channel, origin) {
     if (!channel || watched.has(channel)) return;
     const label = channel.label;
-    if (label !== LABEL_CAPTIONS && label !== LABEL_MEDIA && label !== LABEL_COLLECTIONS) return;
+    if (label !== LABEL_CAPTIONS && label !== LABEL_MEDIA &&
+        label !== LABEL_COLLECTIONS && label !== LABEL_MESSAGES) return;
     watched.add(channel);
 
     if (label === LABEL_MEDIA) {
@@ -507,6 +609,16 @@
     if (label === LABEL_COLLECTIONS) {
       channel.addEventListener('message', event => handleCollectionsData(event.data));
       console.log('[LiveScribe] watching Meet collections channel (' + origin + ')');
+      return;
+    }
+
+    if (label === LABEL_MESSAGES) {
+      channel.addEventListener('message', event => {
+        handleChatData(event.data).catch(error => {
+          diagnostic('chat-handler-failed', { message: error && error.message });
+        });
+      });
+      console.log('[LiveScribe] watching Meet messages channel (' + origin + ')');
       return;
     }
 
@@ -545,13 +657,18 @@
       return nativeFetch.apply(this, args).then(response => {
         try {
           const requestUrl = String(response && response.url || args[0] || '');
-          if (requestUrl.includes(SYNC_COLLECTIONS) && response.clone) {
+          if (response.clone && requestUrl.includes(SYNC_COLLECTIONS)) {
             response.clone().text().then(text => {
               const bytes = decodeBase64Payload(text);
               if (!bytes) return;
               const before = roster.size;
               decodeRoster(bytes);
               if (roster.size !== before) console.log('[LiveScribe] seeded Meet roster: ' + roster.size);
+            }).catch(() => {});
+          } else if (response.clone && requestUrl.includes(CREATE_MESSAGE)) {
+            response.clone().text().then(text => {
+              const bytes = decodeBase64Payload(text);
+              if (bytes) handleChatData(bytes).catch(() => {});
             }).catch(() => {});
           }
         } catch (e) { /* preserve fetch */ }
@@ -613,7 +730,11 @@
         subscriptionTimer = null;
         clearTimeout(flushTimer);
         flushTimer = null;
+        clearTimeout(chatFlushTimer);
+        chatFlushTimer = null;
         pending.clear();
+        pendingChats.clear();
+        seenChatIds.clear();
         roster.clear();
         state.cc = null;
         state.ms = null;
@@ -685,6 +806,8 @@
       emitted: state.emitted,
       rawPackets: state.rawPackets,
       parsedPackets: state.parsedPackets,
+      chatPackets: state.chatPackets,
+      chatEmitted: state.chatEmitted,
       parseMisses: state.parseMisses,
       recoveries: state.recoveries,
       lastCaptionPacketAt: state.lastCaptionPacketAt,

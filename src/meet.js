@@ -20,12 +20,16 @@
   const isTop = (function () { try { return window.top === window; } catch (e) { return false; } })();
   let cap = null, started = false, rtcLines = 0;
 
-  function emit(key, speaker, text) {
-    if (isTop) { if (!P.exists()) P.mount('Google Meet'); C.update(key, speaker, text); }
+  function emit(key, speaker, text, finalize) {
+    if (isTop) {
+      if (!P.exists()) P.mount('Google Meet');
+      C.update(key, speaker, text);
+      if (finalize) C.finalize(key);
+    }
     else {
       try {
         window.top.postMessage({ __livescribe: true, type: 'LS_FRAME_LINE',
-          payload: { key: 'f' + key, speaker, text } }, '*');
+          payload: { key: 'f' + key, speaker, text, finalize: !!finalize } }, '*');
       } catch (e) { /* cross-origin parent */ }
     }
   }
@@ -38,6 +42,7 @@
       if (!p.text) return;
       if (!P.exists()) P.mount('Google Meet');
       C.update(p.key, p.speaker, p.text);
+      if (p.finalize) C.finalize(p.key);
     }
   });
 
@@ -45,6 +50,10 @@
   document.documentElement.addEventListener('livescribe-meet', (ev) => {
     const d = ev.detail || {};
     if (d.type === 'ended') { if (P.meetingEnded) P.meetingEnded(d.via); return; }
+    if (d.type === 'chat' && d.text) {
+      emit('chat:' + d.id, (d.speaker || 'Participant') + ' · Chat', d.text, true);
+      return;
+    }
     if (d.type !== 'speech' || !d.text) return;
     rtcLines++;
     if (rtcLines === 1) {

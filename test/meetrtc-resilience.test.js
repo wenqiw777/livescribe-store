@@ -17,6 +17,7 @@ window.Blob = global.Blob;
 window.DecompressionStream = global.DecompressionStream;
 window.__LS_MEET_CONFIG__ = {
   batchMs: 15,
+  chatBatchMs: 5,
   openDelayMs: 0,
   healthMs: 10,
   silenceMs: 25,
@@ -67,6 +68,16 @@ function languagePacket(language) {
   return new Uint8Array(pMsg(1, pMsg(2, command)));
 }
 
+function chatMessage({ deviceId, timestamp, text, wrapped = true }) {
+  const message = [
+    ...pStr(2, deviceId),
+    ...pInt(3, timestamp),
+    ...pMsg(5, pStr(1, text)),
+  ];
+  if (!wrapped) return new Uint8Array(message);
+  return new Uint8Array(pMsg(1, pMsg(2, pMsg(13, pMsg(4, pMsg(2, message))))));
+}
+
 const deviceId = 'spaces/Room/devices/alex';
 const initialRoster = rosterFrame([{ id: deviceId, name: 'Alex Johnson' }]);
 
@@ -77,6 +88,18 @@ window.fetch = async (input) => {
       url,
       clone() { return this; },
       async text() { return Buffer.from(initialRoster).toString('base64'); },
+    };
+  }
+  if (url.includes('MeetingMessageService/CreateMeetingMessage')) {
+    const selfChat = chatMessage({
+      deviceId,
+      timestamp: 1700000003,
+      text: 'Message sent by this user',
+    });
+    return {
+      url,
+      clone() { return this; },
+      async text() { return Buffer.from(selfChat).toString('base64'); },
     };
   }
   return { url, clone() { return this; }, async text() { return ''; } };
@@ -141,10 +164,28 @@ window.eval(fs.readFileSync(path.join(__dirname, '..', 'src', 'meetrtc.js'), 'ut
 const pc = new window.RTCPeerConnection();
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+async function waitFor(predicate, timeoutMs = 1000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return true;
+    await wait(5);
+  }
+  return predicate();
+}
 
 (async () => {
+  const earlyMessages = pc.createDataChannel('meet_messages');
+  earlyMessages.fire(chatMessage({
+    deviceId,
+    timestamp: 1700000000,
+    text: 'Chat arrived before the roster',
+  }).buffer);
+
   // Seed the participant roster from the pre-meeting collections endpoint.
   await window.fetch('https://meet.google.com/$rpc/google.rtc.meetings.v1.MeetingSpaceService/SyncMeetingSpaceCollections');
+  assert(await waitFor(() => events.some(event => event.type === 'chat' &&
+      event.text === 'Chat arrived before the roster' && event.speaker === 'Alex Johnson')),
+    'chat waits briefly for the initial roster before resolving its speaker');
 
   const media = new FakeChannel('media-session');
   pc.emitRemote(media);
@@ -156,6 +197,56 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
   media.send(languagePacket('fr-FR'));
   assert.strictEqual(window.__ls_meet.lang, 'fr-FR',
     'Meet-originated media-session language changes become the active caption language');
+
+  // Meet chat is a separate message type. Google can surface the same packet
+  // on meet_messages and collections, so the capture must deduplicate it.
+  const meetMessages = pc.createDataChannel('meet_messages');
+  const collections = new FakeChannel('collections');
+  pc.emitRemote(collections);
+  const wrappedChat = chatMessage({
+    deviceId,
+    timestamp: 1700000001,
+    text: 'The launch link is in chat',
+  });
+  meetMessages.fire(wrappedChat.buffer);
+  collections.fire(wrappedChat.buffer);
+
+  const bareChat = chatMessage({
+    deviceId,
+    timestamp: 1700000002,
+    text: 'This is a second chat message',
+    wrapped: false,
+  });
+  collections.fire(bareChat.buffer);
+  assert(await waitFor(() => events.filter(event => event.type === 'chat').length >= 3),
+    'chat events are flushed after their short roster-resolution window');
+  const chatEvents = events.filter(event => event.type === 'chat');
+  assert.strictEqual(chatEvents.filter(event => event.text === 'The launch link is in chat').length, 1,
+    'the same chat packet arriving on two channels is emitted once');
+  assert(chatEvents.some(event => event.text === 'This is a second chat message'),
+    'a bare chat protobuf is accepted as a compatibility path');
+  assert(chatEvents.every(event => event.speaker === 'Alex Johnson'),
+    'chat device ids resolve through the meeting roster');
+
+  await window.fetch('https://meet.google.com/$rpc/google.rtc.meetings.v1.MeetingMessageService/CreateMeetingMessage');
+  assert(await waitFor(() => events.some(event =>
+    event.type === 'chat' && event.text === 'Message sent by this user')),
+    'the CreateMeetingMessage response captures chat sent by the local user');
+
+  const remoteMessages = new FakeChannel('meet_messages');
+  pc.emitRemote(remoteMessages);
+  const compressedChat = zlib.gzipSync(Buffer.from(chatMessage({
+    deviceId,
+    timestamp: 1700000004,
+    text: 'Compressed remote chat message',
+  })));
+  remoteMessages.fire(compressedChat.buffer.slice(
+    compressedChat.byteOffset,
+    compressedChat.byteOffset + compressedChat.byteLength,
+  ));
+  assert(await waitFor(() => events.some(event =>
+    event.type === 'chat' && event.text === 'Compressed remote chat message')),
+    'a remote Meet messages channel accepts gzip-wrapped chat');
 
   const version1 = caption({ deviceId, messageId: 41, version: 1, text: 'ship on' });
   const version2 = caption({ deviceId, messageId: 41, version: 2, text: 'ship on Friday' });
@@ -197,6 +288,17 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
   await wait(20);
   assert(channels.filter(channel => channel.label === 'captions').length > beforeClose,
     'closing the active captions channel opens a replacement');
+
+  const replacement = window.__ls_meet.cc;
+  const remoteCaptions = new FakeChannel('captions', { id: 60001 });
+  pc.emitRemote(remoteCaptions);
+  assert.strictEqual(window.__ls_meet.cc, remoteCaptions,
+    'a newer remote captions channel becomes active');
+  const beforeStaleClose = channels.filter(channel => channel.label === 'captions').length;
+  replacement.close();
+  await wait(20);
+  assert.strictEqual(channels.filter(channel => channel.label === 'captions').length, beforeStaleClose,
+    'closing a stale captions channel does not open another replacement');
 
   // Audio energy advancing without caption packets triggers silence recovery.
   const beforeSilence = channels.filter(channel => channel.label === 'captions').length;
