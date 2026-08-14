@@ -66,5 +66,5 @@ Data uses:
 - No advertising, profiling, sale, or unrelated analytics
 - No developer-controlled transcript server
 
-Privacy policy URL: `https://wenqiw777.github.io/livescribe-store/privacy.html`
-Support URL: `https://wenqiw777.github.io/livescribe-store/support.html`
+Privacy policy URL: `https://wenqiw777.github.io/livescribe/privacy.html`
+Support URL: `https://wenqiw777.github.io/livescribe/support.html`

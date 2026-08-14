@@ -71,7 +71,7 @@ The storage permission saves user settings, meeting transcripts, meeting metadat
 
 ### Privacy policy URL
 
-https://wenqiw777.github.io/livescribe-store/privacy.html
+https://wenqiw777.github.io/livescribe/privacy.html
 
 ### Data-use certification
 

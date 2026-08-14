@@ -17,13 +17,13 @@
     <a href="https://chromewebstore.google.com/detail/gfhncbgjiechicicabgkmlmcljamdelf"><strong>Install from the Chrome Web Store &rarr;</strong></a>
     <br />
     <br />
-    <a href="https://wenqiw777.github.io/livescribe-store/">Website</a>
+    <a href="https://wenqiw777.github.io/livescribe/">Website</a>
     &middot;
-    <a href="https://wenqiw777.github.io/livescribe-store/support.html">Support</a>
+    <a href="https://wenqiw777.github.io/livescribe/support.html">Support</a>
     &middot;
-    <a href="https://github.com/wenqiw777/livescribe-store/issues">Report a bug</a>
+    <a href="https://github.com/wenqiw777/livescribe/issues">Report a bug</a>
     &middot;
-    <a href="https://github.com/wenqiw777/livescribe-store/issues">Request a feature</a>
+    <a href="https://github.com/wenqiw777/livescribe/issues">Request a feature</a>
   </p>
 
   [![Chrome Web Store][chrome-store-shield]][chrome-store-url]
@@ -146,7 +146,7 @@ The public Chrome Web Store package contains only the extension runtime. It does
 - LiveScribe does not sell personal data.
 - Consent is requested separately for every meeting.
 
-Read the full [Privacy Policy](https://wenqiw777.github.io/livescribe-store/privacy.html) and [Chrome Web Store disclosures](store/PRIVACY.md).
+Read the full [Privacy Policy](https://wenqiw777.github.io/livescribe/privacy.html) and [Chrome Web Store disclosures](store/PRIVACY.md).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -157,8 +157,8 @@ Read the full [Privacy Policy](https://wenqiw777.github.io/livescribe-store/priv
 1. Clone the repository:
 
    ```sh
-   git clone https://github.com/wenqiw777/livescribe-store.git
-   cd livescribe-store
+   git clone https://github.com/wenqiw777/livescribe.git
+   cd livescribe
    ```
 
 2. Open `chrome://extensions`.
@@ -169,7 +169,7 @@ Read the full [Privacy Policy](https://wenqiw777.github.io/livescribe-store/priv
 ### Repository layout
 
 ```text
-livescribe-store/
+livescribe/
 ├── manifest.json          Chrome Manifest V3 configuration
 ├── background.js          Session storage and AI provider requests
 ├── popup.*                Extension popup
@@ -230,8 +230,8 @@ The Companion is an unsupported local debugging path for developers who already 
 For the published Chrome Web Store extension:
 
 ```sh
-git clone https://github.com/wenqiw777/livescribe-store.git
-cd livescribe-store
+git clone https://github.com/wenqiw777/livescribe.git
+cd livescribe
 ./native-host/install.sh gfhncbgjiechicicabgkmlmcljamdelf
 ```
 
@@ -276,7 +276,7 @@ Issues and pull requests are welcome.
 4. Run the verification commands above.
 5. Open a pull request describing the user-visible result and how it was tested.
 
-See the [open issues](https://github.com/wenqiw777/livescribe-store/issues) for known problems and proposed improvements.
+See the [open issues](https://github.com/wenqiw777/livescribe/issues) for known problems and proposed improvements.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -290,5 +290,5 @@ LiveScribe is open source under the [MIT License](LICENSE).
 [chrome-store-shield]: https://img.shields.io/badge/Chrome_Web_Store-Install-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white
 [chrome-store-url]: https://chromewebstore.google.com/detail/gfhncbgjiechicicabgkmlmcljamdelf
 [version-shield]: https://img.shields.io/badge/version-0.1.3-2F6BFF?style=for-the-badge
-[license-shield]: https://img.shields.io/github/license/wenqiw777/livescribe-store.svg?style=for-the-badge
-[license-url]: https://github.com/wenqiw777/livescribe-store/blob/main/LICENSE
+[license-shield]: https://img.shields.io/github/license/wenqiw777/livescribe.svg?style=for-the-badge
+[license-url]: https://github.com/wenqiw777/livescribe/blob/main/LICENSE
