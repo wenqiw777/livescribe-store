@@ -26,6 +26,10 @@ const identityClean = textFiles(root).every(file => {
   const content = fs.readFileSync(file, 'utf8').toLowerCase();
   return forbiddenIdentityText.every(term => !content.includes(term.toLowerCase()));
 });
+const repositoryText = textFiles(root)
+  .map(file => fs.readFileSync(file, 'utf8'))
+  .join('\n');
+const currentPrivacyUrl = 'https://wenqiw777.github.io/livescribe/privacy.html';
 
 const checks = [
   ['description fits Store limit', [...manifest.description].length <= 132],
@@ -41,6 +45,8 @@ const checks = [
   ['API key not saved to sync storage', !/storage\.sync\.set\(\{[^}]*apiKey:/s.test(optionsJs)],
   ['personal names and paths removed', identityClean],
   ['privacy policy exists', fs.existsSync(path.join(root, 'store', 'PRIVACY.md'))],
+  ['renamed repository URLs are current', !/wenqiw777(?:\.github\.io|\/)(?:\/)?livescribe-store/i.test(repositoryText)],
+  ['working privacy URL is documented', repositoryText.includes(currentPrivacyUrl)],
   ['listing copy exists', fs.existsSync(path.join(root, 'store', 'LISTING.md'))],
   ['review instructions exist', fs.existsSync(path.join(root, 'store', 'REVIEWER_INSTRUCTIONS.md'))],
   ['packaging script exists', fs.existsSync(path.join(root, 'scripts', 'package-store.sh'))],
